@@ -3,5 +3,9 @@
 .vscode/
 .idea/
 
+# Compiled code
+build/
+build*/
+
 *.log
 *~
