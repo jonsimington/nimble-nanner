@@ -1,0 +1,7 @@
+# Environments & Editors
+.vagrant/
+.vscode/
+.idea/
+
+*.log
+*~
