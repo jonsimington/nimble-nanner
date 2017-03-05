@@ -93,7 +93,6 @@ void pre_process() {
 #include "assert.hpp"
 
 int main(int argc, char **argv) {
-    rus::board::pre_process();
 
     using namespace rus::queen;
 
@@ -103,6 +102,11 @@ int main(int argc, char **argv) {
     RUS_ASSERT_EQ(calcRay(rus::d5, sout), 0x8080808);
     RUS_ASSERT_EQ(calcRay(rus::h1, west), 0x7f);
 
+    RUS_ASSERT_EQ(calcRay(rus::b4, nort_east), 0x2010080400000000);
+    RUS_ASSERT_EQ(calcRay(rus::g7, nort_west), 0x2000000000000000);
+    RUS_ASSERT_EQ(calcRay(rus::d5, sout_west), 0x4020100);
+    RUS_ASSERT_EQ(calcRay(rus::a8, sout_east), 0x2040810204080);
+
     pre_process();
 
     // verify raysTbl
@@ -111,6 +115,11 @@ int main(int argc, char **argv) {
     RUS_ASSERT_EQ(raysTbl[sout][rus::d5], 0x8080808);
     RUS_ASSERT_EQ(raysTbl[west][rus::h1], 0x7f);
 
+    RUS_ASSERT_EQ(raysTbl[nort_east][rus::b4], 0x2010080400000000);
+    RUS_ASSERT_EQ(raysTbl[nort_west][rus::g7], 0x2000000000000000);
+    RUS_ASSERT_EQ(raysTbl[sout_west][rus::d5], 0x4020100);
+    RUS_ASSERT_EQ(raysTbl[sout_east][rus::a8], 0x2040810204080);
+
     // verify calcPositiveRayAttacks
     RUS_ASSERT_EQ(calcPositiveRayAttacks(rus::c4, nort, 0x4001a0004000000), 0x404040400000000);
     RUS_ASSERT_EQ(calcPositiveRayAttacks(rus::c4, east, 0x4001a0004000000), 0xf8000000);
@@ -118,6 +127,11 @@ int main(int argc, char **argv) {
     // verify calcNegativeRayAttacks
     RUS_ASSERT_EQ(calcNegativeRayAttacks(rus::g7, sout, 0x44000080041401), 0x404040404040);
     RUS_ASSERT_EQ(calcNegativeRayAttacks(rus::g7, west, 0x44000080041401), 0x3c000000000000);
+
+    // verify moves
+    RUS_ASSERT_EQ(moves(0x8000000, 0xe0088000200, 0x40002020300000), 0x40201c371c0808);
+
+
 
     return 0;
 }

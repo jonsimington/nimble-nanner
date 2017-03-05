@@ -24,8 +24,11 @@ const Piece_board notABFile = Piece_board(0xfcfcfcfcfcfcfcfc);
 const Piece_board notGHFile = Piece_board(0x3f3f3f3f3f3f3f3f);
 
 // ranks
+const Piece_board rank1 = Piece_board(0x00000000000000FF);
 const Piece_board rank4 = Piece_board(0x00000000FF000000);
 const Piece_board rank5 = Piece_board(0x000000FF00000000);
+const Piece_board rank8 = Piece_board(0xFF00000000000000);
+const Piece_board rank18 = rank1 | rank8;
 
 // step north, east, south, west
 Piece_board step_n(const Piece_board bb);
@@ -41,6 +44,8 @@ Piece_board step_sw(const Piece_board bb);
 
 int idxFromRankFile(const int rank, const std::string file);
 void rankFileFromIdx(int idx, int & rank, std::string & file);
+
+Piece_board from_idx(const int idx);
 
 void forEachBit(Piece_board bb, std::function<void(Board_square)> callback);
 

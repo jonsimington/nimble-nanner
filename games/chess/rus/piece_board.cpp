@@ -1,3 +1,5 @@
+#include <cassert>
+
 #include "piece_board.hpp"
 
 namespace rus {
@@ -24,11 +26,16 @@ int idxFromRankFile(const int rank, const std::string file) {
 void rankFileFromIdx(int idx, int & rank, std::string & file) {
     const std::string files[] = { "a", "b", "c", "d", "e", "f", "g", "h" };
 
-    file = files[idx / 8];
-    rank = (idx % 8) + 1;
+    file = files[idx % 8];
+    rank = (idx / 8) + 1;
 }
 
+Piece_board from_idx(const int idx) {
+    assert(idx >= 0);
+    assert(idx < 64);
 
+    return Piece_board(0x1) << idx;
+}
 
 }
 }

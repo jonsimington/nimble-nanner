@@ -81,7 +81,6 @@ void pre_process() {
 #include "assert.hpp"
 
 int main(int argc, char **argv) {
-    rus::board::pre_process();
 
     using namespace rus::rook;
 
@@ -106,6 +105,9 @@ int main(int argc, char **argv) {
     // verify calcNegativeRayAttacks
     RUS_ASSERT_EQ(calcNegativeRayAttacks(rus::g7, sout, 0x44000080041401), 0x404040404040);
     RUS_ASSERT_EQ(calcNegativeRayAttacks(rus::g7, west, 0x44000080041401), 0x3c000000000000);
+
+    // verify move
+    RUS_ASSERT_EQ(moves(0x8000000, 0x4a000000, 0x800000020000000), 0x808080834080808);
 
     return 0;
 }

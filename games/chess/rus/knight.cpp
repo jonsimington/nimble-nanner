@@ -64,7 +64,7 @@ int main(int argc, char **argv) {
     assert(rus::knight::movesTbl[rus::f8] == 0x88500000000000);
 
     // verify moves()
-    assert(rus::knight::moves(0x10000000004200) == 0x44004428a5180018);
+    assert(rus::knight::moves(0x10000000004200, 0x10000004004210) == 0x44004428a1180008);
 
     return 0;
 }

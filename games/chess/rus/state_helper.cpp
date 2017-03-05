@@ -15,7 +15,7 @@
 namespace rus {
 
 void State_helper::pre_process() {
-    this->occupied = 0;
+    this->occupied = 0x0;
     for (int player = 0; player < player_enum_size; player++) {
         this->any_piece[player] = 0;
 
@@ -44,17 +44,14 @@ void State_helper::construct_from(cpp_client::chess::AI *ai) {
     this->pre_process();
 }
 
-void State_helper::applyMove(const Move move) {
+void State_helper:: applyMove(const Move move) {
     board::Piece_board fromBB = board::Piece_board(0x1) << move.from;
     board::Piece_board toBB = board::Piece_board(0x1) << move.to;
 
-    std::cout << "fromBB" << fromBB << std::endl;
-
     // make sure it exists
-    assert(this->state.boards[move.player][move.piece] & fromBB > 0);
+    assert((this->state.boards[move.player][move.piece] & fromBB) > 0);
 
     this->state.boards[move.player][move.piece] &= ~fromBB;
-
 
     // capture any guys in my way
     for(int i = 0; i < board_enum_size; i++) {
@@ -75,15 +72,15 @@ State_helper State_helper::forkMove(const Move move) {
 }
 
 bool State_helper::isInCheck(const Player_enum player) {
-    Player_enum enemy = player == white_idx ? black_idx : white_idx;
+    Player_enum enemy = static_cast<Player_enum>(player ^ 0x1);
     board::Piece_board enemyMoves = board::empty_board;
 
     enemyMoves |= pawn::captures(enemy, this->state.boards[enemy][pawn_idx], this->any_piece[player]);
-    enemyMoves |= knight::captures(this->state.boards[enemy][knight_idx], this->any_piece[enemy], this->any_piece[player]);
-    enemyMoves |= bishop::captures(this->state.boards[enemy][bishop_idx], this->any_piece[enemy], this->any_piece[player]);
-    enemyMoves |= rook::captures(this->state.boards[enemy][rook_idx], this->any_piece[enemy], this->any_piece[player]);
-    enemyMoves |= queen::captures(this->state.boards[enemy][queen_idx], this->any_piece[enemy], this->any_piece[player]);
-    enemyMoves |= king::captures(this->state.boards[enemy][king_idx], this->any_piece[enemy], this->any_piece[player]);
+    enemyMoves |= knight::moves(this->state.boards[enemy][knight_idx], this->any_piece[enemy]);
+    enemyMoves |= bishop::moves(this->state.boards[enemy][bishop_idx], this->any_piece[enemy], this->any_piece[player]);
+    enemyMoves |= rook::moves(this->state.boards[enemy][rook_idx], this->any_piece[enemy], this->any_piece[player]);
+    enemyMoves |= queen::moves(this->state.boards[enemy][queen_idx], this->any_piece[enemy], this->any_piece[player]);
+    enemyMoves |= king::moves(this->state.boards[enemy][king_idx], this->any_piece[enemy]);
 
     return (enemyMoves & this->state.boards[player][king_idx]) > 0;
 
@@ -99,12 +96,12 @@ std::vector<Move> State_helper::pieceMoves(const Player_enum player, const int i
     board::Piece_board curr = board::Piece_board(0x1) << idx;
 
     // Assert piece to be moved is owned by requested player
-    assert(this->any_piece[player] & curr > 0);
+    assert((this->any_piece[player] & curr) > 0);
 
     if(curr & this->empty) return legal_moves; // idx isn't actually a piece
 
 
-    Board_enum  type;
+    Board_enum  type = static_cast<Board_enum>(-1);
 
     for(int i = 0; i < board_enum_size; i++) {
         if(this->state.boards[player][i] & curr) {
@@ -112,6 +109,8 @@ std::vector<Move> State_helper::pieceMoves(const Player_enum player, const int i
             break;
         }
     }
+
+    assert(type != -1);
 
     // psudo legal moves
     board::Piece_board pl = 0x0;
@@ -134,25 +133,29 @@ std::vector<Move> State_helper::pieceMoves(const Player_enum player, const int i
         case queen_idx:
             pl |= queen::moves(curr, this->any_piece[player], this->any_piece[player ^ 0x1]);
             break;
-        case king_idx:
-            pl |= king::moves(curr, this->any_piece[player]);
-            break;
+        case king_idx: {
+            auto m = king::moves(curr, this->any_piece[player]);
+            std::cout << "King Moves: " << m << std::endl;
+            pl |= m;
+            } break;
+        default:
+            assert(false); // ???
     }
 
 
-    bit_scan::forEachBit(pl, [&moves, player, type](int i){
+    bit_scan::forEachBit(pl, [&moves, player, type, idx](int i){
         Move m;
         m.player = player;
-        m.from = i;
+        m.from = idx;
         m.to = i;
         m.piece = type;
         moves.push_back(m);
     });
 
     for(auto& move: moves) {
-        auto state = this->forkMove(move);
+        auto s = this->forkMove(move);
 
-        if(! state.isInCheck(move.player)) {
+        if(! s.isInCheck(move.player)) {
             legal_moves.push_back(move);
         }
     }

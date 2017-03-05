@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
     assert(rus::king::movesTbl[rus::c5] == 0xe0a0e000000);
 
     // verify moves()
-    assert(rus::king::moves(0x8000000400004000) == 0x40c00e0a0ee0a0e0);
+    assert(rus::king::moves(0x8000000400004000, 0x80000c0400006020) == 0x40c0020a0ee080c0);
 
 
     return 0;

@@ -81,7 +81,6 @@ void pre_process() {
 #include "assert.hpp"
 
 int main(int argc, char **argv) {
-    rus::board::pre_process();
 
     using namespace rus::bishop;
 
@@ -106,6 +105,10 @@ int main(int argc, char **argv) {
     // verify calcNegativeRayAttacks
     RUS_ASSERT_EQ(calcNegativeRayAttacks(rus::g7, sout_east, 0x44000080041401), 0x800000000000);
     RUS_ASSERT_EQ(calcNegativeRayAttacks(rus::g7, sout_west, 0x44000080041401), 0x201008040000);
+
+    // verify captures
+    RUS_ASSERT_EQ(captures(0x800000000, 0x60008000080c0, 0x4020000000020100), 0x20000000020000);
+
 
     return 0;
 }

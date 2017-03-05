@@ -32,6 +32,11 @@ void AI::start()
     // This is a good place to initialize any variables
     srand(time(NULL));
 
+    rus::knight::pre_process();
+    rus::bishop::pre_process();
+    rus::rook::pre_process();
+    rus::queen::pre_process();
+    rus::king::pre_process();
 
 }
 
@@ -84,26 +89,26 @@ bool AI::run_turn()
 
     rus::Player_enum me = this->player->color == "White" ? rus::white_idx : rus::black_idx;
 
-    bool chose_move = false;
-    while(!chose_move) {
-        // choose random piece
-        auto random_piece = player->pieces[rand() % player->pieces.size()];
+    std::cout << "Chosing move..." << std::endl;
 
-        int piece_idx = rus::board::idxFromRankFile(random_piece->rank, random_piece->file);
+    auto player_moves = state.playerMoves(me);
 
-        auto player_moves = state.playerMoves(me);
-        auto piece_moves = state.pieceMoves(me, piece_idx);
+    auto& move = player_moves[rand() % player_moves.size()];
 
-        if(piece_moves.empty()) continue;
+    int moveRank;
+    std::string moveFile;
 
-        auto& move = piece_moves[0];
+    rus::board::rankFileFromIdx(move.to, moveRank, moveFile);
 
-        int moveRank;
-        std::string moveFile;
+    auto toBB = rus::board::from_idx(move.to);
 
-        rus::board::rankFileFromIdx(move.to, moveRank, moveFile);
+    auto piece = this->getPieceByIdx(move.from);
 
-        random_piece->move(moveFile, moveRank);
+    if((toBB & rus::board::rank18) && move.piece == rus::pawn_idx) {
+        piece->move(moveFile, moveRank, "Queen");
+    }
+    else {
+        piece->move(moveFile, moveRank);
     }
 
     return true; // to signify we are done with our turn.
@@ -176,6 +181,18 @@ void AI::print_current_board()
 }
 
 // You can add additional methods here for your AI to call
+Piece AI::getPieceByIdx(const int idx) {
+    int rank;
+    std::string file;
+
+    rus::board::rankFileFromIdx(idx, rank, file);
+
+    for(auto& p: this->game->pieces) {
+        if(p->rank == rank && p->file == file) {
+            return p;
+        }
+    }
+}
 
 } // chess
 
