@@ -6,12 +6,12 @@
 namespace rus {
 namespace knight {
 
-Piece_board attacks[64];
-void preProcessAttacks() {
-    for(Piece_board i = 0x1; i <= 0x1 << 63; i <<= 1) {
-        
-    }
-}
+board::Piece_board movesTbl[64];
+
+board::Piece_board calcMoves(const board::Piece_board knights);
+board::Piece_board moves(board::Piece_board knights);
+board::Piece_board captures(const board::Piece_board knights, const board::Piece_board any_enemy);
+void pre_process();
 
 }
 }
