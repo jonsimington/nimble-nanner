@@ -76,12 +76,12 @@ if(WIN32)
    add_definitions(-DWIN32)
 endif(WIN32)
 
-#set C++11
+#set C++14
 if(EXPLICIT_VERSION)
-   set_property(TARGET ${PROG_NAME} PROPERTY CXX_STANDARD 11)
+   set_property(TARGET ${PROG_NAME} PROPERTY CXX_STANDARD 14)
    set_property(TARGET ${PROG_NAME} PROPERTY CXX_STANDARD_REQUIRED ON)
 else()
    if(UNIX OR MINGW)
-      set_target_properties(${PROG_NAME} PROPERTIES COMPILE_OPTIONS "-std=c++11")
+      set_target_properties(${PROG_NAME} PROPERTIES COMPILE_OPTIONS "-std=c++14")
    endif(UNIX OR MINGW)
 endif()
