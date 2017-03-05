@@ -4,6 +4,7 @@
 #include "ai.hpp"
 
 // You can add #includes here for your AI.
+//#include "rus/rus.hpp"
 
 namespace cpp_client
 {
@@ -29,6 +30,8 @@ void AI::start()
 {
     // This is a good place to initialize any variables
     srand(time(NULL));
+
+
 }
 
 /// <summary>
@@ -55,31 +58,31 @@ void AI::ended(bool won, const std::string& reason)
 /// <returns>Represents if you want to end your turn. True means end your turn, False means to keep your turn going and re-call this function.</returns>
 bool AI::run_turn()
 {
-    // Here is where you'll want to code your AI.
-
-    // We've provided sample code that:
-    //    1) prints the board to the console
-    //    2) prints the opponent's last move to the console
-    //    3) prints how much time remaining this AI has to calculate moves
-    //    4) makes a random (and probably invalid) move.
-
-    // 1) print the board to the console
-    print_current_board();
-
-    // 2) print the opponent's last move to the console
-    if(game->moves.size() > 0)
-    {
-        std::cout << "Opponent's Last Move: '" << game->moves[game->moves.size() - 1]->san << "'" << std::endl;
-    }
-
-    // 3) print how much time remaining this AI has to calculate moves
-    std::cout << "Time Remaining: " << player->time_remaining << " ns" << std::endl;
-
-    // 4) make a random (and probably invalid) move.
-    chess::Piece random_piece = player->pieces[rand() % player->pieces.size()];
-    std::string random_file(1, 'a' + rand() % 8);
-    int random_rank = (rand() % 8) + 1;
-    random_piece->move(random_file, random_rank);
+//    // Here is where you'll want to code your AI.
+//
+//    // We've provided sample code that:
+//    //    1) prints the board to the console
+//    //    2) prints the opponent's last move to the console
+//    //    3) prints how much time remaining this AI has to calculate moves
+//    //    4) makes a random (and probably invalid) move.
+//
+//    // 1) print the board to the console
+//    print_current_board();
+//
+//    // 2) print the opponent's last move to the console
+//    if(game->moves.size() > 0)
+//    {
+//        std::cout << "Opponent's Last Move: '" << game->moves[game->moves.size() - 1]->san << "'" << std::endl;
+//    }
+//
+//    // 3) print how much time remaining this AI has to calculate moves
+//    std::cout << "Time Remaining: " << player->time_remaining << " ns" << std::endl;
+//
+//    // 4) make a random (and probably invalid) move.
+//    chess::Piece random_piece = player->pieces[rand() % player->pieces.size()];
+//    std::string random_file(1, 'a' + rand() % 8);
+//    int random_rank = (rand() % 8) + 1;
+//    random_piece->move(random_file, random_rank);
 
     return true; // to signify we are done with our turn.
 }

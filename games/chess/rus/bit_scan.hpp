@@ -7,7 +7,6 @@
 namespace rus {
 namespace bit_scan {
 
-// https://chessprogramming.wikispaces.com/BitScan
 // https://chessprogramming.wikispaces.com/De+Bruijn+sequence
 // De Bruijn multiplication for the purposes of isolated least significant bitscanning
 const board::Piece_board debruijn64 = board::Piece_board(0x03f79d71b4cb0a89);
@@ -29,10 +28,7 @@ const int index64[64] = {
  * @precondition bb != 0
  * @return index (0..63) of least significant one bit
  */
-int scanForward(board::Piece_board bb) {
-    assert (bb != 0);
-    return index64[((bb ^ (bb - 1)) * debruijn64) >> 58];
-}
+int scanForward(board::Piece_board bb);
 
 /**
  * scanReverse
@@ -41,16 +37,7 @@ int scanForward(board::Piece_board bb) {
  * @precondition bb != 0
  * @return index (0..63) of most significant one bit
  */
-int scanReverse(board::Piece_board bb) {
-    assert (bb != 0);
-    bb |= bb >> 1;
-    bb |= bb >> 2;
-    bb |= bb >> 4;
-    bb |= bb >> 8;
-    bb |= bb >> 16;
-    bb |= bb >> 32;
-    return index64[(bb * debruijn64) >> 58];
-}
+int scanReverse(board::Piece_board bb);
 
 }
 }

@@ -8,7 +8,7 @@ namespace rus {
 
 class Chess_state {
 public:
-    Piece_board boards[player_enum_size][board_enum_size];
+    board::Piece_board boards[player_enum_size][board_enum_size];
 };
 
 }
