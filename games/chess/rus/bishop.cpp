@@ -7,6 +7,8 @@
 namespace rus {
 namespace bishop {
 
+board::Piece_board raysTbl[ray_direction_size][64];
+
 board::Piece_board calcRay(const int sq, const int dir) {
     board::Piece_board me = board::Piece_board(0x1) << sq;
     switch(dir) {
@@ -50,12 +52,12 @@ board::Piece_board moves(board::Piece_board bishops, const board::Piece_board an
     board::Piece_board mvs = board::empty_board;
     if(bishops) do {
         int idx = bit_scan::scanForward(bishops);
-        mvs |= calcPositiveRayAttacks(occupied, idx, nort_east);
-        mvs |= calcPositiveRayAttacks(occupied, idx, nort_west);
-        mvs |= calcNegativeRayAttacks(occupied, idx, sout_east);
-        mvs |= calcNegativeRayAttacks(occupied, idx, sout_west);
-        mvs &= ~any_friendly; // don't attack friendly
+        mvs |= calcPositiveRayAttacks(idx, nort_east, occupied);
+        mvs |= calcPositiveRayAttacks(idx, nort_west, occupied);
+        mvs |= calcNegativeRayAttacks(idx, sout_east, occupied);
+        mvs |= calcNegativeRayAttacks(idx, sout_west, occupied);
     } while(bishops &= bishops-1);
+    mvs &= ~any_friendly;
     return mvs;
 }
 

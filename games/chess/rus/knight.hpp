@@ -6,11 +6,11 @@
 namespace rus {
 namespace knight {
 
-board::Piece_board movesTbl[64];
+extern board::Piece_board movesTbl[64];
 
 board::Piece_board calcMoves(const board::Piece_board knights);
-board::Piece_board moves(board::Piece_board knights);
-board::Piece_board captures(const board::Piece_board knights, const board::Piece_board any_enemy);
+board::Piece_board moves(board::Piece_board knights, const board::Piece_board any_friendly);
+board::Piece_board captures(const board::Piece_board knights, const board::Piece_board any_friendly, const board::Piece_board any_enemy);
 void pre_process();
 
 }

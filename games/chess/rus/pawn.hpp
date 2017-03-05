@@ -7,6 +7,7 @@
 namespace rus {
 namespace pawn {
 
+
 board::Piece_board move1(const Player_enum player, const board::Piece_board pawns, const board::Piece_board empty);
 board::Piece_board move2(const Player_enum player, const board::Piece_board pawns, const board::Piece_board empty);
 board::Piece_board attacks(const Player_enum player, const board::Piece_board pawns);

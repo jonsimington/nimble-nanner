@@ -13,4 +13,5 @@ rus/pawn.cpp
 rus/piece_board.cpp
 rus/queen.cpp
 rus/rook.cpp
+rus/chess_state.cpp
 rus/state_helper.cpp

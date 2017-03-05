@@ -2,6 +2,7 @@
 // This is where you build your AI
 
 #include "ai.hpp"
+#include "rus/rus.hpp"
 
 // You can add #includes here for your AI.
 //#include "rus/rus.hpp"
@@ -66,23 +67,44 @@ bool AI::run_turn()
 //    //    3) prints how much time remaining this AI has to calculate moves
 //    //    4) makes a random (and probably invalid) move.
 //
-//    // 1) print the board to the console
-//    print_current_board();
-//
-//    // 2) print the opponent's last move to the console
-//    if(game->moves.size() > 0)
-//    {
-//        std::cout << "Opponent's Last Move: '" << game->moves[game->moves.size() - 1]->san << "'" << std::endl;
-//    }
-//
-//    // 3) print how much time remaining this AI has to calculate moves
-//    std::cout << "Time Remaining: " << player->time_remaining << " ns" << std::endl;
-//
-//    // 4) make a random (and probably invalid) move.
-//    chess::Piece random_piece = player->pieces[rand() % player->pieces.size()];
-//    std::string random_file(1, 'a' + rand() % 8);
-//    int random_rank = (rand() % 8) + 1;
-//    random_piece->move(random_file, random_rank);
+    // 1) print the board to the console
+    print_current_board();
+
+    // 2) print the opponent's last move to the console
+    if(game->moves.size() > 0) {
+        std::cout << "Opponent's Last Move: '" << game->moves[game->moves.size() - 1]->san << "'" << std::endl;
+    }
+
+    // 3) print how much time remaining this AI has to calculate moves
+    std::cout << "Time Remaining: " << player->time_remaining << " ns" << std::endl;
+
+    // Build current chess state
+    rus::State_helper state;
+    state.construct_from(this);
+
+    rus::Player_enum me = this->player->color == "White" ? rus::white_idx : rus::black_idx;
+
+    bool chose_move = false;
+    while(!chose_move) {
+        // choose random piece
+        auto random_piece = player->pieces[rand() % player->pieces.size()];
+
+        int piece_idx = rus::board::idxFromRankFile(random_piece->rank, random_piece->file);
+
+        auto player_moves = state.playerMoves(me);
+        auto piece_moves = state.pieceMoves(me, piece_idx);
+
+        if(piece_moves.empty()) continue;
+
+        auto& move = piece_moves[0];
+
+        int moveRank;
+        std::string moveFile;
+
+        rus::board::rankFileFromIdx(move.to, moveRank, moveFile);
+
+        random_piece->move(moveFile, moveRank);
+    }
 
     return true; // to signify we are done with our turn.
 }

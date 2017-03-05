@@ -6,6 +6,8 @@
 namespace rus {
 namespace knight {
 
+board::Piece_board movesTbl[64];
+
 board::Piece_board calcMoves(const board::Piece_board knights) {
     board::Piece_board l1 = (knights >> 1) & board::notHFile;
     board::Piece_board l2 = (knights >> 2) & board::notGHFile;
@@ -16,17 +18,18 @@ board::Piece_board calcMoves(const board::Piece_board knights) {
     return (h1 << 16) | (h1 >> 16) | (h2 << 8) | (h2 >> 8);
 }
 
-board::Piece_board moves(board::Piece_board knights) {
+board::Piece_board moves(board::Piece_board knights, board::Piece_board any_friendly) {
     board::Piece_board ms = board::empty_board;
     if(knights) do {
         int idx = bit_scan::scanForward(knights);
         ms |= movesTbl[idx];
     } while(knights &= knights-1);
+    ms &= ~any_friendly;
     return ms;
 }
 
-board::Piece_board captures(const board::Piece_board knights, const board::Piece_board any_enemy) {
-    return moves(knights) & any_enemy;
+board::Piece_board captures(const board::Piece_board knights, const board::Piece_board any_friendly, const board::Piece_board any_enemy) {
+    return moves(knights, any_friendly) & any_enemy;
 }
 
 void pre_process() {

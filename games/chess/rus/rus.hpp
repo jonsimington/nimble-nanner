@@ -13,5 +13,6 @@
 #include "queen.hpp"
 #include "rook.hpp"
 #include "state_helper.hpp"
+#include "move.hpp"
 
 #endif

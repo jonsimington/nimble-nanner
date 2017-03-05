@@ -39,6 +39,8 @@ int scanForward(board::Piece_board bb);
  */
 int scanReverse(board::Piece_board bb);
 
+void forEachBit(board::Piece_board bb, std::function<void (const int)> func);
+
 }
 }
 

@@ -7,6 +7,8 @@
 namespace rus {
 namespace rook {
 
+board::Piece_board raysTbl[ray_direction_size][64];
+
 board::Piece_board calcRay(const int sq, const int dir) {
     board::Piece_board me = board::Piece_board(0x1) << sq;
     switch(dir) {
@@ -49,13 +51,13 @@ board::Piece_board moves(board::Piece_board rooks, const board::Piece_board any_
     board::Piece_board occupied = any_friendly | any_enemy;
     board::Piece_board mvs = board::empty_board;
     if(rooks) do {
-            int idx = bit_scan::scanForward(rooks);
-            mvs |= calcPositiveRayAttacks(idx, nort, occupied);
-            mvs |= calcPositiveRayAttacks(idx, east, occupied);
-            mvs |= calcNegativeRayAttacks(idx, west, occupied);
-            mvs |= calcNegativeRayAttacks(idx, sout, occupied);
-            mvs &= ~any_friendly; // don't attack friendly
-        } while(rooks &= rooks-1);
+        int idx = bit_scan::scanForward(rooks);
+        mvs |= calcPositiveRayAttacks(idx, nort, occupied);
+        mvs |= calcPositiveRayAttacks(idx, east, occupied);
+        mvs |= calcNegativeRayAttacks(idx, west, occupied);
+        mvs |= calcNegativeRayAttacks(idx, sout, occupied);
+    } while(rooks &= rooks-1);
+    mvs &= ~any_friendly;
     return mvs;
 }
 

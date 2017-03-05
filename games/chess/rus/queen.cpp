@@ -7,6 +7,8 @@
 namespace rus {
 namespace queen {
 
+board::Piece_board raysTbl[ray_direction_size][64];
+
 board::Piece_board calcRay(const int sq, const int dir) {
     board::Piece_board me = board::Piece_board(0x1) << sq;
     switch(dir) {
@@ -66,8 +68,8 @@ board::Piece_board moves(board::Piece_board queens, const board::Piece_board any
         mvs |= calcPositiveRayAttacks(idx, nort_west, occupied);
         mvs |= calcNegativeRayAttacks(idx, sout_east, occupied);
         mvs |= calcNegativeRayAttacks(idx, sout_west, occupied);
-        mvs &= ~any_friendly; // don't attack friendly
     } while(queens &= queens-1);
+    mvs &= ~any_friendly;
     return mvs;
 }
 

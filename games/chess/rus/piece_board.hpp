@@ -2,6 +2,9 @@
 #define RUS_PIECE_BOARD_HPP
 
 #include <cstdint>
+#include <string>
+#include <functional>
+#include "enums.hpp"
 
 namespace rus {
 namespace board {
@@ -36,7 +39,10 @@ Piece_board step_se(const Piece_board bb);
 Piece_board step_nw(const Piece_board bb);
 Piece_board step_sw(const Piece_board bb);
 
-void pre_process();
+int idxFromRankFile(const int rank, const std::string file);
+void rankFileFromIdx(int idx, int & rank, std::string & file);
+
+void forEachBit(Piece_board bb, std::function<void(Board_square)> callback);
 
 }
 }

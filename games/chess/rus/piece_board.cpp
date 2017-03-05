@@ -14,8 +14,21 @@ Piece_board step_se(const Piece_board bb) { return (bb >> 7) & notAFile; }
 Piece_board step_nw(const Piece_board bb) { return (bb << 7) & notHFile; }
 Piece_board step_sw(const Piece_board bb) { return (bb >> 9) & notHFile; }
 
-void pre_process() {
+
+int idxFromRankFile(const int rank, const std::string file) {
+    int file_offset = file[0] - 'a';
+    int rank_offset = rank - 1;
+    return file_offset + (8 * rank_offset);
 }
+
+void rankFileFromIdx(int idx, int & rank, std::string & file) {
+    const std::string files[] = { "a", "b", "c", "d", "e", "f", "g", "h" };
+
+    file = files[idx / 8];
+    rank = (idx % 8) + 1;
+}
+
+
 
 }
 }

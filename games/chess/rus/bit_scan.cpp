@@ -24,5 +24,13 @@ int scanReverse(board::Piece_board bb) {
     return index64[(bb * debruijn64) >> 58];
 }
 
+void forEachBit(board::Piece_board bb, std::function<void (const int)> func) {
+    board::Piece_board ms = board::empty_board;
+    if(bb) do {
+        int idx = bit_scan::scanForward(bb);
+        func(idx);
+    } while(bb &= bb-1);
+}
+
 }
 }

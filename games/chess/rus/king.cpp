@@ -6,6 +6,8 @@
 namespace rus {
 namespace king {
 
+board::Piece_board movesTbl[64];
+
 board::Piece_board calcMoves(board::Piece_board kings) {
     board::Piece_board atks = board::step_e(kings) | board::step_w(kings);
     kings |= atks;
@@ -13,17 +15,18 @@ board::Piece_board calcMoves(board::Piece_board kings) {
     return atks;
 }
 
-board::Piece_board moves(board::Piece_board kings) {
+board::Piece_board moves(board::Piece_board kings, board::Piece_board any_friendly) {
     board::Piece_board mvs = board::empty_board;
     if(kings) do {
         int idx = bit_scan::scanForward(kings);
         mvs |= movesTbl[idx];
     } while(kings &= kings - 1);
+    mvs &= ~any_friendly;
     return mvs;
 }
 
-board::Piece_board captures(const board::Piece_board kings, const board::Piece_board any_enemy) {
-    return moves(kings) & any_enemy;
+board::Piece_board captures(const board::Piece_board kings, const board::Piece_board any_friendly, const board::Piece_board any_enemy) {
+    return moves(kings, any_friendly) & any_enemy;
 }
 
 void pre_process() {
