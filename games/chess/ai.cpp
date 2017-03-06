@@ -75,6 +75,8 @@ bool AI::run_turn()
     // 1) print the board to the console
     print_current_board();
 
+    std:: cout << "FEN: " << this->game->fen << std::endl;
+
     // 2) print the opponent's last move to the console
     if(game->moves.size() > 0) {
         std::cout << "Opponent's Last Move: '" << game->moves[game->moves.size() - 1]->san << "'" << std::endl;
@@ -92,7 +94,28 @@ bool AI::run_turn()
     std::cout << "Chosing move..." << std::endl;
 
     auto player_moves = state.playerMoves(me);
+
     std::cout << "Moves total: " << player_moves.size() << std::endl;
+    std::cout << "Moves: " << player_moves.size() << std::endl;
+
+    const std::string nameMap[] = {
+            "Pawn",
+            "Knight",
+            "Bishop",
+            "Rook",
+            "Queen",
+            "King",
+    };
+
+    for(auto& m: player_moves) {
+        int fromRank, toRank;
+        std::string fromFile, toFile;
+
+        rus::board::rankFileFromIdx(m.from, fromRank, fromFile);
+        rus::board::rankFileFromIdx(m.to, toRank, toFile);
+
+        std::cout << nameMap[m.piece] << "\t" << fromFile << fromRank << " -> " << toFile << toRank << std::endl;
+    }
 
     auto& move = player_moves[rand() % player_moves.size()];
 
@@ -193,6 +216,9 @@ Piece AI::getPieceByIdx(const int idx) {
             return p;
         }
     }
+
+    std::cerr << "Error: Piece not found" << std::endl;
+    std::cerr << "File: " << rank << "\tRank: " << rank << std::endl;
 }
 
 } // chess

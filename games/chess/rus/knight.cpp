@@ -65,6 +65,9 @@ int main(int argc, char **argv) {
 
     // verify moves()
     assert(rus::knight::moves(0x10000000004200, 0x10000004004210) == 0x44004428a1180008);
+    assert(rus::knight::moves(0x10, 0x0) == 0x284400);
+
+
 
     return 0;
 }

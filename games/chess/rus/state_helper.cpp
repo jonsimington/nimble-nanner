@@ -1,5 +1,7 @@
 #include <cassert>
 #include <iostream>
+#include <sstream>
+#include <string>
 
 #include "state_helper.hpp"
 #include "../ai.hpp"
@@ -41,6 +43,37 @@ void State_helper::clear() {
 void State_helper::construct_from(cpp_client::chess::AI *ai) {
     this->clear();
     this->state.construct_from(ai);
+
+    std::stringstream ss(ai->game->fen);
+
+    std::string section;
+
+    // piece placement
+    ss >> section;
+
+    // side to move
+    ss >> section;
+
+    // castling ability
+    ss >> section;
+
+    this->castlingAbility[white_idx][king_side] = (section.find("K") != std::string::npos);
+    this->castlingAbility[white_idx][queen_side] = (section.find("Q") != std::string::npos);
+
+    this->castlingAbility[black_idx][king_side] = (section.find("k") != std::string::npos);
+    this->castlingAbility[black_idx][queen_side] = (section.find("q") != std::string::npos);
+
+    // en passant target square
+    ss >> section;
+
+    if(section == "-") {
+        this->enPessantable = false;
+    }
+    else {
+        this->enPessantIdx = board::idxFromRankFile(section[1] - '1' + 1, std::to_string(section[0]));
+    }
+
+
     this->pre_process();
 }
 
@@ -75,42 +108,104 @@ bool State_helper::isInCheck(const Player_enum player) {
     Player_enum enemy = static_cast<Player_enum>(player ^ 0x1);
     board::Piece_board enemyMoves = board::empty_board;
 
-    std::cout << "Checking checks..." << std::endl;
-
     enemyMoves |= pawn::captures(enemy, this->state.boards[enemy][pawn_idx], this->any_piece[player]);
-    if(enemyMoves & this->state.boards[player][king_idx]) {
-        std::cout << "checked by pawn" << std::endl;
-    }
-
     enemyMoves |= knight::moves(this->state.boards[enemy][knight_idx], this->any_piece[enemy]);
-    if(enemyMoves & this->state.boards[player][king_idx]) {
-        std::cout << "checked by knight" << std::endl;
-    }
-
     enemyMoves |= bishop::moves(this->state.boards[enemy][bishop_idx], this->any_piece[enemy], this->any_piece[player]);
-    if(enemyMoves & this->state.boards[player][king_idx]) {
-        std::cout << "checked by bishop" << std::endl;
-    }
-
     enemyMoves |= rook::moves(this->state.boards[enemy][rook_idx], this->any_piece[enemy], this->any_piece[player]);
-    if(enemyMoves & this->state.boards[player][king_idx]) {
-        std::cout << "checked by rook" << std::endl;
-    }
-
     enemyMoves |= queen::moves(this->state.boards[enemy][queen_idx], this->any_piece[enemy], this->any_piece[player]);
-    if(enemyMoves & this->state.boards[player][king_idx]) {
-        std::cout << "checked by queen" << std::endl;
-    }
-
     enemyMoves |= king::moves(this->state.boards[enemy][king_idx], this->any_piece[enemy]);
-    if(enemyMoves & this->state.boards[player][king_idx]) {
-        std::cout << "checked by king" << std::endl;
-    }
-
-    std::cout << "Enemy moves: " << enemyMoves << std::endl;
-    std::cout << "King pos: " << this->state.boards[player][king_idx] << std::endl;
     return (enemyMoves & this->state.boards[player][king_idx]) > 0;
 
+}
+
+std::vector<Move> State_helper::castlingMoves(const Player_enum player) {
+    Player_enum enemy = static_cast<Player_enum>(player ^ 0x1);
+    board::Piece_board enemyMoves = board::empty_board;
+
+    std::vector<Move> moves;
+
+    // get all enemy attacks
+    enemyMoves |= pawn::attacks(enemy, this->state.boards[enemy][pawn_idx]);
+    enemyMoves |= knight::moves(this->state.boards[enemy][knight_idx], this->any_piece[enemy]);
+    enemyMoves |= bishop::moves(this->state.boards[enemy][bishop_idx], this->any_piece[enemy], this->any_piece[player]);
+    enemyMoves |= rook::moves(this->state.boards[enemy][rook_idx], this->any_piece[enemy], this->any_piece[player]);
+    enemyMoves |= queen::moves(this->state.boards[enemy][queen_idx], this->any_piece[enemy], this->any_piece[player]);
+    enemyMoves |= king::moves(this->state.boards[enemy][king_idx], this->any_piece[enemy]);
+
+    auto kingBB = this->state.boards[player][king_idx];
+
+    //check if king in check
+    if(kingBB & enemyMoves) return moves;
+
+    //check both sides
+    for(int side = 0; side < castling_enum_size; side++) {
+        Move m;
+        // the king and the relevant rook must not be moved, considered as castling rights inside a chess position
+        if (!this->castlingAbility[player][side]) continue;
+        if (side == queen_side) {
+            // 5) There are pieces standing between your king and rook.
+            if (this->occupied & (player==white_idx?0x0e:0xe00000000000000)) continue;
+
+            // The king moves through a square that is attacked by a piece of the opponent.
+            if (enemyMoves & (player==white_idx?0x30:0x3000000000000000)) continue;
+
+            m.player = player;
+            m.piece = king_idx;
+            m.from = (player==white_idx)?e1:e8;
+            m.to = (player==white_idx)?c1:c8;
+
+            //std::cout << "Adding castling move " << m.from << "->" << m.to << std::endl;
+
+        } else if (side == king_side) {
+            // 5) There are pieces standing between your king and rook.
+            if (this->occupied & (player==white_idx?0x60:0x6000000000000000)) continue;
+
+            // The king moves through a square that is attacked by a piece of the opponent.
+            if (enemyMoves & ((player==white_idx)?0x60:0x6000000000000000)) continue;
+
+            m.player = player;
+            m.piece = king_idx;
+            m.from = (player==white_idx)?e1:e8;
+            m.to = (player==white_idx)?g1:g8;
+
+            //std::cout << "Adding castling move " << m.from << "->" << m.to << std::endl;
+        }
+        moves.push_back(m);
+    }
+
+    return moves;
+}
+
+std::vector<Move> State_helper::enPassantMoves(const Player_enum player) {
+    Player_enum enemy = static_cast<Player_enum>(player ^ 0x1);
+    std::vector<Move> moves;
+
+    if(! this->enPessantable) return moves;
+
+    auto epBB = board::from_idx(enPessantIdx);
+    board::Piece_board pawns = this->state.boards[player][pawn_idx];
+
+    board::Piece_board mvs = board::empty_board;
+    if(pawns) do {
+        int idx = bit_scan::scanForward(pawns);
+        auto idxBB = board::from_idx(idx);
+
+        // if attack
+        if(pawn::attacks(player, idxBB) & epBB) {
+            // log en passant
+            Move m;
+            m.player = player;
+            m.from = idx;
+            m.to = this->enPessantIdx;
+            m.piece = pawn_idx;
+
+            moves.push_back(m);
+            return moves; // there can only be one en passant anyways
+        }
+
+    } while(pawns &= pawns-1);
+
+    return moves;
 }
 
 std::vector<Move> State_helper::pieceMoves(const Player_enum player, const int idx) {
@@ -160,11 +255,9 @@ std::vector<Move> State_helper::pieceMoves(const Player_enum player, const int i
         case queen_idx:
             pl |= queen::moves(curr, this->any_piece[player], this->any_piece[player ^ 0x1]);
             break;
-        case king_idx: {
-            auto m = king::moves(curr, this->any_piece[player]);
-            std::cout << "King Moves: " << m << std::endl;
-            pl |= m;
-            } break;
+        case king_idx:
+            pl |= king::moves(curr, this->any_piece[player]);
+            break;
         default:
             assert(false); // ???
     }
@@ -195,10 +288,23 @@ std::vector<Move> State_helper::playerMoves(const Player_enum player) {
 
     bit_scan::forEachBit(this->any_piece[player], [this, &moves, player](int i){
         auto m = this->pieceMoves(player, i);
-        std::cout << "Inserting " << m.size() << " moves..." << std::endl;
         moves.insert(moves.begin(), m.begin(), m.end());
     });
-    std::cout << "Got " << moves.size() << " moves" << std::endl;
+
+    // handle castling
+    auto pl_moves = this->castlingMoves(player);
+
+    // handle en passant
+    auto ep_moves = this->enPassantMoves(player);
+    pl_moves.insert(pl_moves.begin(), ep_moves.begin(), ep_moves.end());
+    for(auto& move: pl_moves) {
+        State_helper s = this->forkMove(move);
+
+        if(! s.isInCheck(move.player)) {
+            moves.push_back(move);
+        }
+    }
+
     return moves;
 }
 
