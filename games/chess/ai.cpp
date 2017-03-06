@@ -92,6 +92,7 @@ bool AI::run_turn()
     std::cout << "Chosing move..." << std::endl;
 
     auto player_moves = state.playerMoves(me);
+    std::cout << "Moves total: " << player_moves.size() << std::endl;
 
     auto& move = player_moves[rand() % player_moves.size()];
 

@@ -16,15 +16,15 @@ namespace rus {
 
 void State_helper::pre_process() {
     this->occupied = 0x0;
-    for (int player = 0; player < player_enum_size; player++) {
-        this->any_piece[player] = 0;
+    this->any_piece[white_idx] = 0x0;
+    this->any_piece[black_idx] = 0x0;
 
-        for (int piece = 0; piece < board_enum_size; piece++) {
-            this->any_piece[player] |= this->state.boards[player][piece];
-        }
-
-        this->occupied |= this->any_piece[player];
+    for (int piece = 0; piece < board_enum_size; piece++) {
+        this->any_piece[white_idx] |= this->state.boards[white_idx][piece];
+        this->any_piece[black_idx] |= this->state.boards[black_idx][piece];
     }
+
+    this->occupied = this->any_piece[white_idx] | this->any_piece[black_idx];
 
     empty = ~occupied;
 }
@@ -45,18 +45,18 @@ void State_helper::construct_from(cpp_client::chess::AI *ai) {
 }
 
 void State_helper:: applyMove(const Move move) {
-    board::Piece_board fromBB = board::Piece_board(0x1) << move.from;
-    board::Piece_board toBB = board::Piece_board(0x1) << move.to;
+    board::Piece_board fromBB = board::from_idx(move.from);
+    board::Piece_board toBB = board::from_idx(move.to);
 
     // make sure it exists
     assert((this->state.boards[move.player][move.piece] & fromBB) > 0);
 
-    this->state.boards[move.player][move.piece] &= ~fromBB;
-
     // capture any guys in my way
     for(int i = 0; i < board_enum_size; i++) {
-        this->state.boards[white_idx][move.piece] &= ~toBB;
-        this->state.boards[black_idx][move.piece] &= ~toBB;
+        this->state.boards[white_idx][i] &= ~fromBB;
+        this->state.boards[black_idx][i] &= ~fromBB;
+        this->state.boards[white_idx][i] &= ~toBB;
+        this->state.boards[black_idx][i] &= ~toBB;
     }
 
     this->state.boards[move.player][move.piece] |= toBB;
@@ -75,13 +75,40 @@ bool State_helper::isInCheck(const Player_enum player) {
     Player_enum enemy = static_cast<Player_enum>(player ^ 0x1);
     board::Piece_board enemyMoves = board::empty_board;
 
-    enemyMoves |= pawn::captures(enemy, this->state.boards[enemy][pawn_idx], this->any_piece[player]);
-    enemyMoves |= knight::moves(this->state.boards[enemy][knight_idx], this->any_piece[enemy]);
-    enemyMoves |= bishop::moves(this->state.boards[enemy][bishop_idx], this->any_piece[enemy], this->any_piece[player]);
-    enemyMoves |= rook::moves(this->state.boards[enemy][rook_idx], this->any_piece[enemy], this->any_piece[player]);
-    enemyMoves |= queen::moves(this->state.boards[enemy][queen_idx], this->any_piece[enemy], this->any_piece[player]);
-    enemyMoves |= king::moves(this->state.boards[enemy][king_idx], this->any_piece[enemy]);
+    std::cout << "Checking checks..." << std::endl;
 
+    enemyMoves |= pawn::captures(enemy, this->state.boards[enemy][pawn_idx], this->any_piece[player]);
+    if(enemyMoves & this->state.boards[player][king_idx]) {
+        std::cout << "checked by pawn" << std::endl;
+    }
+
+    enemyMoves |= knight::moves(this->state.boards[enemy][knight_idx], this->any_piece[enemy]);
+    if(enemyMoves & this->state.boards[player][king_idx]) {
+        std::cout << "checked by knight" << std::endl;
+    }
+
+    enemyMoves |= bishop::moves(this->state.boards[enemy][bishop_idx], this->any_piece[enemy], this->any_piece[player]);
+    if(enemyMoves & this->state.boards[player][king_idx]) {
+        std::cout << "checked by bishop" << std::endl;
+    }
+
+    enemyMoves |= rook::moves(this->state.boards[enemy][rook_idx], this->any_piece[enemy], this->any_piece[player]);
+    if(enemyMoves & this->state.boards[player][king_idx]) {
+        std::cout << "checked by rook" << std::endl;
+    }
+
+    enemyMoves |= queen::moves(this->state.boards[enemy][queen_idx], this->any_piece[enemy], this->any_piece[player]);
+    if(enemyMoves & this->state.boards[player][king_idx]) {
+        std::cout << "checked by queen" << std::endl;
+    }
+
+    enemyMoves |= king::moves(this->state.boards[enemy][king_idx], this->any_piece[enemy]);
+    if(enemyMoves & this->state.boards[player][king_idx]) {
+        std::cout << "checked by king" << std::endl;
+    }
+
+    std::cout << "Enemy moves: " << enemyMoves << std::endl;
+    std::cout << "King pos: " << this->state.boards[player][king_idx] << std::endl;
     return (enemyMoves & this->state.boards[player][king_idx]) > 0;
 
 }
@@ -153,7 +180,7 @@ std::vector<Move> State_helper::pieceMoves(const Player_enum player, const int i
     });
 
     for(auto& move: moves) {
-        auto s = this->forkMove(move);
+        State_helper s = this->forkMove(move);
 
         if(! s.isInCheck(move.player)) {
             legal_moves.push_back(move);
@@ -168,9 +195,10 @@ std::vector<Move> State_helper::playerMoves(const Player_enum player) {
 
     bit_scan::forEachBit(this->any_piece[player], [this, &moves, player](int i){
         auto m = this->pieceMoves(player, i);
+        std::cout << "Inserting " << m.size() << " moves..." << std::endl;
         moves.insert(moves.begin(), m.begin(), m.end());
     });
-
+    std::cout << "Got " << moves.size() << " moves" << std::endl;
     return moves;
 }
 

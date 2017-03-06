@@ -131,8 +131,6 @@ int main(int argc, char **argv) {
     // verify moves
     RUS_ASSERT_EQ(moves(0x8000000, 0xe0088000200, 0x40002020300000), 0x40201c371c0808);
 
-
-
     return 0;
 }
 
