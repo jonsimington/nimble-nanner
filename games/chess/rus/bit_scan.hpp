@@ -2,14 +2,14 @@
 #define RUS_BIT_SCAN
 
 #include <cassert>
-#include "piece_board.hpp"
+#include "board.hpp"
 
 namespace rus {
 namespace bit_scan {
 
 // https://chessprogramming.wikispaces.com/De+Bruijn+sequence
 // De Bruijn multiplication for the purposes of isolated least significant bitscanning
-const board::Piece_board debruijn64 = board::Piece_board(0x03f79d71b4cb0a89);
+const board::Board debruijn64 = board::Board(0x03f79d71b4cb0a89);
 const int index64[64] = {
         0, 47, 1, 56, 48, 27, 2, 60,
         57, 49, 41, 37, 28, 16, 3, 61,
@@ -28,7 +28,7 @@ const int index64[64] = {
  * @precondition bb != 0
  * @return index (0..63) of least significant one bit
  */
-int scanForward(board::Piece_board bb);
+int scan_fwd(board::Board bb);
 
 /**
  * scanReverse
@@ -37,9 +37,9 @@ int scanForward(board::Piece_board bb);
  * @precondition bb != 0
  * @return index (0..63) of most significant one bit
  */
-int scanReverse(board::Piece_board bb);
+int scan_rev(board::Board bb);
 
-void forEachBit(board::Piece_board bb, std::function<void (const int)> func);
+void for_each_bit(board::Board bb, std::function<void(const int)> func);
 
 }
 }

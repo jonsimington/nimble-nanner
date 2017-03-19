@@ -1,22 +1,22 @@
 #ifndef RUS_FILL_HPP
 #define RUS_FILL_HPP
 
-#include "piece_board.hpp"
+#include "board.hpp"
 
 namespace rus {
 namespace fill {
 
 // https://chessprogramming.wikispaces.com/Kogge-Stone+Algorithm#Fillonanemptyboard
 
-board::Piece_board nortFill(board::Piece_board gen);
-board::Piece_board soutFill(board::Piece_board gen);
-board::Piece_board eastFill(board::Piece_board gen);
-board::Piece_board westFill(board::Piece_board gen);
+board::Board nortFill(board::Board gen);
+board::Board soutFill(board::Board gen);
+board::Board eastFill(board::Board gen);
+board::Board westFill(board::Board gen);
 
-board::Piece_board noEaFill(board::Piece_board gen);
-board::Piece_board soEaFill(board::Piece_board gen);
-board::Piece_board soWeFill(board::Piece_board gen);
-board::Piece_board noWeFill(board::Piece_board gen);
+board::Board noEaFill(board::Board gen);
+board::Board soEaFill(board::Board gen);
+board::Board soWeFill(board::Board gen);
+board::Board noWeFill(board::Board gen);
 
 }
 }

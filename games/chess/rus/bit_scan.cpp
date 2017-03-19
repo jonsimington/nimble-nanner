@@ -1,19 +1,19 @@
 #include <cassert>
 
 #include "bit_scan.hpp"
-#include "piece_board.hpp"
+#include "board.hpp"
 
 namespace rus {
 namespace bit_scan {
 
 // https://chessprogramming.wikispaces.com/BitScan
 
-int scanForward(board::Piece_board bb) {
+int scan_fwd(board::Board bb) {
     assert (bb != 0);
     return index64[((bb ^ (bb - 1)) * debruijn64) >> 58];
 }
 
-int scanReverse(board::Piece_board bb) {
+int scan_rev(board::Board bb) {
     assert (bb != 0);
     bb |= bb >> 1;
     bb |= bb >> 2;
@@ -24,12 +24,14 @@ int scanReverse(board::Piece_board bb) {
     return index64[(bb * debruijn64) >> 58];
 }
 
-void forEachBit(board::Piece_board bb, std::function<void (const int)> func) {
-    board::Piece_board ms = board::empty_board;
-    if(bb) do {
-        int idx = bit_scan::scanForward(bb);
-        func(idx);
-    } while(bb &= bb-1);
+void for_each_bit(board::Board bb, std::function<void(const int)> func) {
+    board::Board ms = board::empty;
+    if(bb) {
+        do {
+            int idx = bit_scan::scan_fwd(bb);
+            func(idx);
+        } while(bb &= bb-1);
+    }
 }
 
 }

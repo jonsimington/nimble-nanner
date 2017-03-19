@@ -2,8 +2,8 @@
 #define RUS_CHESS_BOARD_HPP
 
 #include <vector>
-#include "chess_state.hpp"
-#include "piece_board.hpp"
+#include "state.hpp"
+#include "board.hpp"
 #include "move.hpp"
 #include "../impl/chess_fwd.hpp"
 
@@ -21,7 +21,7 @@ public:
 
     board::Piece_board empty; // preprocessed
     board::Piece_board occupied; // preprocessed
-    board::Piece_board any_piece[player_enum_size];
+    board::Piece_board any_piece[player_enum_size]; // preprocessed
 
     enum Castling_enum {
         queen_side,

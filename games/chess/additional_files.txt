@@ -5,13 +5,8 @@
 # If your build fails after adding files, try to build again
 
 rus/bit_scan.cpp
-rus/bishop.cpp
 rus/fill.cpp
-rus/king.cpp
-rus/knight.cpp
-rus/pawn.cpp
-rus/piece_board.cpp
-rus/queen.cpp
-rus/rook.cpp
-rus/chess_state.cpp
-rus/state_helper.cpp
+rus/state.cpp
+rus/board.cpp
+rus/position.cpp
+rus/engine.cpp

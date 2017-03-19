@@ -29,15 +29,19 @@ std::string AI::get_name() const
 /// </summary>
 void AI::start()
 {
-    // This is a good place to initialize any variables
     srand(time(NULL));
 
-    rus::knight::pre_process();
-    rus::bishop::pre_process();
-    rus::rook::pre_process();
-    rus::queen::pre_process();
-    rus::king::pre_process();
+    engine = std::make_unique(rus::Engine());
 
+    rus::Engine_options options;
+    std::string str;
+
+    options.fen = game->fen;
+    if((str = get_setting("id_depth")) != "") {
+        options.id_depth = rus::util::from_string<int>(str);
+    }
+
+    engine->initialize(options);
 }
 
 /// <summary>
@@ -64,75 +68,10 @@ void AI::ended(bool won, const std::string& reason)
 /// <returns>Represents if you want to end your turn. True means end your turn, False means to keep your turn going and re-call this function.</returns>
 bool AI::run_turn()
 {
-//    // Here is where you'll want to code your AI.
-//
-//    // We've provided sample code that:
-//    //    1) prints the board to the console
-//    //    2) prints the opponent's last move to the console
-//    //    3) prints how much time remaining this AI has to calculate moves
-//    //    4) makes a random (and probably invalid) move.
-//
-    // 1) print the board to the console
+
     print_current_board();
-
-    std:: cout << "FEN: " << this->game->fen << std::endl;
-
-    // 2) print the opponent's last move to the console
     if(game->moves.size() > 0) {
-        std::cout << "Opponent's Last Move: '" << game->moves[game->moves.size() - 1]->san << "'" << std::endl;
-    }
-
-    // 3) print how much time remaining this AI has to calculate moves
-    std::cout << "Time Remaining: " << player->time_remaining << " ns" << std::endl;
-
-    // Build current chess state
-    rus::State_helper state;
-    state.construct_from(this);
-
-    rus::Player_enum me = this->player->color == "White" ? rus::white_idx : rus::black_idx;
-
-    std::cout << "Chosing move..." << std::endl;
-
-    auto player_moves = state.playerMoves(me);
-
-    std::cout << "Moves total: " << player_moves.size() << std::endl;
-    std::cout << "Moves: " << player_moves.size() << std::endl;
-
-    const std::string nameMap[] = {
-            "Pawn",
-            "Knight",
-            "Bishop",
-            "Rook",
-            "Queen",
-            "King",
-    };
-
-    for(auto& m: player_moves) {
-        int fromRank, toRank;
-        std::string fromFile, toFile;
-
-        rus::board::rankFileFromIdx(m.from, fromRank, fromFile);
-        rus::board::rankFileFromIdx(m.to, toRank, toFile);
-
-        std::cout << nameMap[m.piece] << "\t" << fromFile << fromRank << " -> " << toFile << toRank << std::endl;
-    }
-
-    auto& move = player_moves[rand() % player_moves.size()];
-
-    int moveRank;
-    std::string moveFile;
-
-    rus::board::rankFileFromIdx(move.to, moveRank, moveFile);
-
-    auto toBB = rus::board::from_idx(move.to);
-
-    auto piece = this->getPieceByIdx(move.from);
-
-    if((toBB & rus::board::rank18) && move.piece == rus::pawn_idx) {
-        piece->move(moveFile, moveRank, "Queen");
-    }
-    else {
-        piece->move(moveFile, moveRank);
+        engine->update(game->moves.back()->san);
     }
 
     return true; // to signify we are done with our turn.

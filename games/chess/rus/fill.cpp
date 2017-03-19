@@ -3,74 +3,74 @@
 namespace rus {
 namespace fill {
 
-board::Piece_board soutFill(board::Piece_board gen) {
+board::Board soutFill(board::Board gen) {
     gen |= (gen >>  8);
     gen |= (gen >> 16);
     gen |= (gen >> 32);
     return gen;
 }
 
-board::Piece_board nortFill(board::Piece_board gen) {
+board::Board nortFill(board::Board gen) {
     gen |= (gen <<  8);
     gen |= (gen << 16);
     gen |= (gen << 32);
     return gen;
 }
 
-board::Piece_board eastFill(board::Piece_board gen) {
-    const board::Piece_board pr0 = board::notAFile;
-    const board::Piece_board pr1 = pr0 & (pr0 << 1);
-    const board::Piece_board pr2 = pr1 & (pr1 << 2);
+board::Board eastFill(board::Board gen) {
+    const board::Board pr0 = ~board::file('a');
+    const board::Board pr1 = pr0 & (pr0 << 1);
+    const board::Board pr2 = pr1 & (pr1 << 2);
     gen |= pr0 & (gen << 1);
     gen |= pr1 & (gen << 2);
     gen |= pr2 & (gen << 4);
     return gen;
 }
 
-board::Piece_board noEaFill(board::Piece_board gen) {
-    const board::Piece_board pr0 = board::notAFile;
-    const board::Piece_board pr1 = pr0 & (pr0 << 9);
-    const board::Piece_board pr2 = pr1 & (pr1 << 18);
+board::Board noEaFill(board::Board gen) {
+    const board::Board pr0 = ~board::file('a');
+    const board::Board pr1 = pr0 & (pr0 << 9);
+    const board::Board pr2 = pr1 & (pr1 << 18);
     gen |= pr0 & (gen << 9);
     gen |= pr1 & (gen << 18);
     gen |= pr2 & (gen << 36);
     return gen;
 }
 
-board::Piece_board soEaFill(board::Piece_board gen) {
-    const board::Piece_board pr0 = board::notAFile;
-    const board::Piece_board pr1 = pr0 & (pr0 >> 7);
-    const board::Piece_board pr2 = pr1 & (pr1 >> 14);
+board::Board soEaFill(board::Board gen) {
+    const board::Board pr0 = ~board::file('a');
+    const board::Board pr1 = pr0 & (pr0 >> 7);
+    const board::Board pr2 = pr1 & (pr1 >> 14);
     gen |= pr0 & (gen >> 7);
     gen |= pr1 & (gen >> 14);
     gen |= pr2 & (gen >> 28);
     return gen;
 }
 
-board::Piece_board westFill(board::Piece_board gen) {
-    const board::Piece_board pr0 = board::notHFile;
-    const board::Piece_board pr1 = pr0 & (pr0 >> 1);
-    const board::Piece_board pr2 = pr1 & (pr1 >> 2);
+board::Board westFill(board::Board gen) {
+    const board::Board pr0 = ~board::file('h');
+    const board::Board pr1 = pr0 & (pr0 >> 1);
+    const board::Board pr2 = pr1 & (pr1 >> 2);
     gen |= pr0 & (gen >> 1);
     gen |= pr1 & (gen >> 2);
     gen |= pr2 & (gen >> 4);
     return gen;
 }
 
-board::Piece_board soWeFill(board::Piece_board gen) {
-    const board::Piece_board pr0 = board::notHFile;
-    const board::Piece_board pr1 = pr0 & (pr0 >> 9);
-    const board::Piece_board pr2 = pr1 & (pr1 >> 18);
+board::Board soWeFill(board::Board gen) {
+    const board::Board pr0 = ~board::file('h');
+    const board::Board pr1 = pr0 & (pr0 >> 9);
+    const board::Board pr2 = pr1 & (pr1 >> 18);
     gen |= pr0 & (gen >> 9);
     gen |= pr1 & (gen >> 18);
     gen |= pr2 & (gen >> 36);
     return gen;
 }
 
-board::Piece_board noWeFill(board::Piece_board gen) {
-    const board::Piece_board pr0 = board::notHFile;
-    const board::Piece_board pr1 = pr0 & (pr0 << 7);
-    const board::Piece_board pr2 = pr1 & (pr1 << 14);
+board::Board noWeFill(board::Board gen) {
+    const board::Board pr0 = ~board::file('h');
+    const board::Board pr1 = pr0 & (pr0 << 7);
+    const board::Board pr2 = pr1 & (pr1 << 14);
     gen |= pr0 & (gen << 7);
     gen |= pr1 & (gen << 14);
     gen |= pr2 & (gen << 28);
