@@ -7,9 +7,13 @@
 #include "engine.hpp"
 #include "bit_scan.hpp"
 #include "fill.hpp"
-#include "position.hpp"
+#include "enums.hpp"
 
 namespace rus {
+
+    Engine::Engine() {
+
+    }
 
     void Engine::initialize(const Engine_options & options) {
 
@@ -41,60 +45,169 @@ namespace rus {
 
     State Engine::apply_move(const State &state, const Move move) const {
         auto new_state = state;
-        auto player = state.player;
-        auto enemy = Player::opponent(state.player);
+        auto player_e = state.player;
+        auto player = to_i(state.player);
+        auto enemy = to_i(!state.player);
         auto from_bb = board::position(move.from);
         auto to_bb = board::position(move.from);
-        auto piece = state.find_piece_type(move.from);
-
         assert(from_bb & state.any_piece[player] > 0); // piece is owned by player
 
+        const auto pawn_i = to_i(Piece::pawn);
+        const auto rook_i = to_i(Piece::rook);
+        const auto king_i = to_i(Piece::king);
 
+        auto piece_e = new_state.find_piece_type(move.from);
+        auto piece = to_i(piece_e);
+
+        bool clear_ep = true;
 
         switch(move.flag) {
             case Move::Flag::quiet: {
-
+                new_state.boards[player][piece] &= ~from_bb;
+                new_state.boards[player][piece] |= to_bb;
             } break;
+
+            case Move::Flag::dbl_pawn: {
+                assert(piece_e == Piece::pawn);
+                new_state.boards[player][pawn_i] &= ~from_bb;
+                new_state.boards[player][pawn_i] |= to_bb;
+
+                clear_ep = false;
+                new_state.ep_able = true;
+                new_state.ep_pos = move.to;
+            } break;
+
+            case Move::Flag::king_castle: {
+                assert(piece_e == Piece::king);
+                assert(new_state.castling_ability[player][to_i(Castle::king)]);
+                auto rook_from_bb = board::position(player_e == Player::white ? Position::h1 : Position::h8);
+                auto rook_to_bb = board::position(player_e == Player::white ? Position::f1 : Position::f8);
+                assert(new_state.boards[player][to_i(Piece::rook)] & rook_from_bb > 0); // Assert rook is there
+
+                new_state.boards[player][king_i] &= ~from_bb;
+                new_state.boards[player][king_i] |= to_bb;
+
+                new_state.boards[player][rook_i] &= ~rook_from_bb;
+                new_state.boards[player][rook_i] |= rook_to_bb;
+
+                new_state.castling_ability[player][to_i(Castle::king)] = false;
+            } break;
+
+            case Move::Flag::queen_castle: {
+                assert(piece_e == Piece::king);
+                assert(new_state.castling_ability[player][to_i(Castle::queen)]);
+                auto rook_from_bb = board::position(player_e == Player::white ? Position::a1 : Position::a8);
+                auto rook_to_bb = board::position(player_e == Player::white ? Position::d1 : Position::d8);
+                assert(new_state.boards[player][rook_i] & rook_from_bb > 0); // Assert rook is there
+
+                new_state.boards[player][king_i] &= ~from_bb;
+                new_state.boards[player][king_i] |= to_bb;
+
+                new_state.boards[player][rook_i] &= ~rook_from_bb;
+                new_state.boards[player][rook_i] |= rook_to_bb;
+
+                new_state.castling_ability[player][to_i(Castle::queen)] = false;
+            } break;
+
+            case Move::Flag::capture: {
+                auto captured_type = to_i(new_state.find_piece_type(move.to));
+                new_state.boards[player][piece] &= ~from_bb;
+                new_state.boards[player][piece] |= to_bb;
+                new_state.boards[enemy][captured_type] &= ~to_bb;
+            } break;
+
+            case Move::Flag::ep_capture: {
+                assert(piece_e == Piece::pawn);
+                assert(state.ep_able);
+                auto captured_bb = board::position(state.ep_pos);
+                assert(state.boards[enemy][pawn_i] & captured_bb > 0);
+
+                new_state.boards[player][pawn_i] &= ~from_bb;
+                new_state.boards[player][pawn_i] |= to_bb;
+                new_state.boards[enemy][pawn_i] &= ~captured_bb;
+            } break;
+
+            case Move::Flag::knight_promo: {
+                assert(piece_e == Piece::pawn);
+                new_state.boards[player][piece] &= ~from_bb;
+                new_state.boards[player][to_i(Piece::knight)] |= to_bb;
+            } break;
+
+            case Move::Flag::bishop_promo: {
+                assert(piece_e == Piece::pawn);
+                new_state.boards[player][piece] &= ~from_bb;
+                new_state.boards[player][to_i(Piece::bishop)] |= to_bb;
+            } break;
+
+            case Move::Flag::rook_promo: {
+                assert(piece_e == Piece::pawn);
+                new_state.boards[player][piece] &= ~from_bb;
+                new_state.boards[player][to_i(Piece::rook)] |= to_bb;
+            } break;
+
+            case Move::Flag::queen_promo: {
+                assert(piece_e == Piece::pawn);
+                new_state.boards[player][piece] &= ~from_bb;
+                new_state.boards[player][to_i(Piece::queen)] |= to_bb;
+            } break;
+
+            default:
+                assert(false); // Invalid flag
+        }
+
+        if(clear_ep) {
+            new_state.ep_able = false;
+            new_state.ep_pos = Position::a1;
         }
 
         new_state.pre_process();
         return new_state;
     }
 
-    std::vector<Move> Engine::piece_moves(const State state, const Position::Type sq) const {
+    std::vector<Move> Engine::piece_moves(const State state, const Position sq) const {
         std::vector<Move> moves;
 
         auto curr = board::position(sq);
 
-        auto player = state.player;
-        auto enemy = Player::opponent(state.player);
+        auto player = to_i(state.player);
+        auto player_e = state.player;
+        auto enemy = to_i(!state.player);
 
-        assert(curr & state.any_piece[state.player] > 0); // assert square is valid and owned by current player
+        assert(curr & state.any_piece[player] > 0); // assert square is valid and owned by current player
 
-        auto type = Piece::size;
-        for(int piece = 0; piece < Piece::size; piece++) {
-            if(state.boards[state.player][piece] & curr) {
+        auto type = Piece::end;
+        for(auto piece = Piece::start; piece != Piece::end; ++piece) {
+            if(state.boards[player][to_i(piece)] & curr) {
                 type = piece;
                 break;
             }
         }
-        assert(type != Piece::size);
+        assert(type != Piece::end);
 
         switch(type) {
             case Piece::pawn: {
-                auto bb = pawn_moves1(player, curr, state.empty);
-                bit_scan::for_each_bit(bb, [this, &moves, &state](Position::Type to){
-                    Move m{.from=sq, .to=to, .flag=Move::Flag::quiet};
+                auto bb = pawn_moves1(player_e, curr, state.empty);
+                bit_scan::for_each_bit(bb, [sq, this, &moves, &state](Position to){
+                    Move m;
+                    m.from = sq;
+                    m.to = to;
+                    m.flag = Move::Flag::quiet;
                     moves.push_back(m);
                 });
-                bb = pawn_moves1(player, curr, state.empty);
-                bit_scan::for_each_bit(bb, [this, &moves, &state](Position::Type to){
-                    Move m{.from=sq, .to=to, .flag=Move::Flag::dbl_pawn};
+                bb = pawn_moves1(player_e, curr, state.empty);
+                bit_scan::for_each_bit(bb, [sq, this, &moves, &state](Position to){
+                    Move m;
+                    m.from=sq;
+                    m.to=to;
+                    m.flag=Move::Flag::dbl_pawn;
                     moves.push_back(m);
                 });
-                bb = pawn_captures(player, curr, state.any_piece[enemy]);
-                bit_scan::for_each_bit(bb, [this, &moves, &state](Position::Type to){
-                    Move m{.from=sq, .to=to, .flag=Move::Flag::capture};
+                bb = pawn_captures(player_e, curr, state.any_piece[enemy]);
+                bit_scan::for_each_bit(bb, [sq, this, &moves, &state](Position to){
+                    Move m;
+                    m.from = sq;
+                    m.to = to;
+                    m.flag=Move::Flag::capture;
                     moves.push_back(m);
                 });
             } break;
@@ -102,14 +215,20 @@ namespace rus {
             case Piece::knight: {
                 auto bb = knight_moves(curr, state.any_piece[player]);
                 auto quiet = bb & ~state.any_piece[enemy];
-                bit_scan::for_each_bit(quiet, [this, &moves, &state](Position::Type to){
-                    Move m{.from=sq, .to=to, .flag=Move::Flag::quiet};
+                bit_scan::for_each_bit(quiet, [sq, this, &moves, &state](Position to){
+                    Move m;
+                    m.from = sq;
+                    m.to = to;
+                    m.flag=Move::Flag::quiet;
                     moves.push_back(m);
                 });
 
                 auto captures = bb & state.any_piece[enemy];
-                bit_scan::for_each_bit(captures, [this, &moves, &state](Position::Type to){
-                    Move m{.from=sq, .to=to, .flag=Move::Flag::capture};
+                bit_scan::for_each_bit(captures, [sq, this, &moves, &state](Position to){
+                    Move m;
+                    m.from = sq;
+                    m.to = to;
+                    m.flag=Move::Flag::capture;
                     moves.push_back(m);
                 });
             } break;
@@ -117,14 +236,20 @@ namespace rus {
             case Piece::bishop: {
                 auto bb = bishop_moves(curr, state.any_piece[player], state.any_piece[enemy]);
                 auto quiet = bb & ~state.any_piece[enemy];
-                bit_scan::for_each_bit(quiet, [this, &moves, &state](Position::Type to){
-                    Move m{.from=sq, .to=to, .flag=Move::Flag::quiet};
+                bit_scan::for_each_bit(quiet, [sq, this, &moves, &state](Position to){
+                    Move m;
+                    m.from=sq;
+                    m.to=to;
+                    m.flag=Move::Flag::quiet;
                     moves.push_back(m);
                 });
 
                 auto captures = bb & state.any_piece[enemy];
-                bit_scan::for_each_bit(captures, [this, &moves, &state](Position::Type to){
-                    Move m{.from=sq, .to=to, .flag=Move::Flag::capture};
+                bit_scan::for_each_bit(captures, [sq, this, &moves, &state](Position to){
+                    Move m;
+                    m.from=sq;
+                    m.to=to;
+                    m.flag=Move::Flag::capture;
                     moves.push_back(m);
                 });
             } break;
@@ -132,14 +257,20 @@ namespace rus {
             case Piece::rook: {
                 auto bb = rook_moves(curr, state.any_piece[player], state.any_piece[enemy]);
                 auto quiet = bb & ~state.any_piece[enemy];
-                bit_scan::for_each_bit(quiet, [this, &moves, &state](Position::Type to){
-                    Move m{.from=sq, .to=to, .flag=Move::Flag::quiet};
+                bit_scan::for_each_bit(quiet, [sq, this, &moves, &state](Position to){
+                    Move m;
+                    m.from=sq;
+                    m.to=to;
+                    m.flag=Move::Flag::quiet;
                     moves.push_back(m);
                 });
 
                 auto captures = bb & state.any_piece[enemy];
-                bit_scan::for_each_bit(captures, [this, &moves, &state](Position::Type to){
-                    Move m{.from=sq, .to=to, .flag=Move::Flag::capture};
+                bit_scan::for_each_bit(captures, [sq, this, &moves, &state](Position to){
+                    Move m;
+                    m.from=sq;
+                    m.to=to;
+                    m.flag=Move::Flag::capture;
                     moves.push_back(m);
                 });
             } break;
@@ -147,14 +278,20 @@ namespace rus {
             case Piece::queen: {
                 auto bb = queen_moves(curr, state.any_piece[player], state.any_piece[enemy]);
                 auto quiet = bb & ~state.any_piece[enemy];
-                bit_scan::for_each_bit(quiet, [this, &moves, &state](Position::Type to){
-                    Move m{.from=sq, .to=to, .flag=Move::Flag::quiet};
+                bit_scan::for_each_bit(quiet, [sq, this, &moves, &state](Position to){
+                    Move m;
+                    m.from=sq;
+                    m.to=to;
+                    m.flag=Move::Flag::quiet;
                     moves.push_back(m);
                 });
 
                 auto captures = bb & state.any_piece[enemy];
-                bit_scan::for_each_bit(captures, [this, &moves, &state](Position::Type to){
-                    Move m{.from=sq, .to=to, .flag=Move::Flag::capture};
+                bit_scan::for_each_bit(captures, [sq, this, &moves, &state](Position to){
+                    Move m;
+                    m.from=sq;
+                    m.to=to;
+                    m.flag=Move::Flag::capture;
                     moves.push_back(m);
                 });
             } break;
@@ -162,14 +299,20 @@ namespace rus {
             case Piece::king: {
                 auto bb = king_moves(curr, state.any_piece[player]);
                 auto quiet = bb & ~state.any_piece[enemy];
-                bit_scan::for_each_bit(quiet, [this, &moves, &state](Position::Type to){
-                    Move m{.from=sq, .to=to, .flag=Move::Flag::quiet};
+                bit_scan::for_each_bit(quiet, [sq, this, &moves, &state](Position to){
+                    Move m;
+                    m.from=sq;
+                    m.to=to;
+                    m.flag=Move::Flag::quiet;
                     moves.push_back(m);
                 });
 
                 auto captures = bb & state.any_piece[enemy];
-                bit_scan::for_each_bit(captures, [this, &moves, &state](Position::Type to){
-                    Move m{.from=sq, .to=to, .flag=Move::Flag::capture};
+                bit_scan::for_each_bit(captures, [sq, this, &moves, &state](Position to){
+                    Move m;
+                    m.from=sq;
+                    m.to=to;
+                    m.flag=Move::Flag::capture;
                     moves.push_back(m);
                 });
             } break;
@@ -183,7 +326,7 @@ namespace rus {
         return moves;
     }
 
-    std::vector<Move> Engine::valid_piece_moves(const State state, const Position::Type sq) const {
+    std::vector<Move> Engine::valid_piece_moves(const State state, const Position sq) const {
         auto moves = piece_moves(state, sq);
         return filter_out_check(state, moves);
     }
@@ -191,7 +334,7 @@ namespace rus {
     std::vector<Move> Engine::moves(const State state) const {
         std::vector<Move> moves;
 
-        bit_scan::for_each_bit(state.any_piece[state.player], [this, &moves, &state](Position::Type sq){
+        bit_scan::for_each_bit(state.any_piece[to_i(state.player)], [this, &moves, &state](Position sq){
             auto ms = piece_moves(state, sq);
             moves.insert(moves.begin(), ms.begin(), ms.end());
         });
@@ -204,7 +347,7 @@ namespace rus {
         return filter_out_check(state, mvs);
     }
 
-    board::Board Engine::pawn_moves1(const Player::Type player, const board::Board pawns, const board::Board empty) const {
+    board::Board Engine::pawn_moves1(const Player player, const board::Board pawns, const board::Board empty) const {
         if(player == Player::white) {
             return board::step_n(pawns) & empty;
         }
@@ -212,7 +355,7 @@ namespace rus {
             return board::step_s(pawns) & empty;
         }
     }
-    board::Board Engine::pawn_moves2(const Player::Type player, const board::Board pawns, const board::Board empty) const {
+    board::Board Engine::pawn_moves2(const Player player, const board::Board pawns, const board::Board empty) const {
         board::Board m1 = pawn_moves1(player, pawns, empty);
 
         if(player == Player::white) {
@@ -222,7 +365,7 @@ namespace rus {
             return board::step_s(m1) & empty & board::rank(5);
         }
     }
-    board::Board Engine::pawn_attacks(const Player::Type player, const board::Board pawns) const {
+    board::Board Engine::pawn_attacks(const Player player, const board::Board pawns) const {
         if(player == Player::white) {
             return board::step_ne(pawns) | board::step_nw(pawns);
         }
@@ -231,7 +374,7 @@ namespace rus {
         }
     }
 
-    board::Board Engine::pawn_captures(const Player::Type player, const board::Board pawns, const board::Board any_enemy) const {
+    board::Board Engine::pawn_captures(const Player player, const board::Board pawns, const board::Board any_enemy) const {
         return pawn_attacks(player, pawns) & any_enemy;
     }
 
@@ -252,11 +395,11 @@ namespace rus {
         board::Board mvs = board::empty;
         if(rooks) {
             do {
-                int idx = bit_scan::scan_fwd(rooks);
-                mvs |= calc_pos_ray(idx, nort, occupied);
-                mvs |= calc_pos_ray(idx, east, occupied);
-                mvs |= calc_neg_ray(idx, west, occupied);
-                mvs |= calc_neg_ray(idx, sout, occupied);
+                auto idx = static_cast<Position>(bit_scan::scan_fwd(rooks));
+                mvs |= calc_pos_ray(idx, Ray::nort, occupied);
+                mvs |= calc_pos_ray(idx, Ray::east, occupied);
+                mvs |= calc_neg_ray(idx, Ray::west, occupied);
+                mvs |= calc_neg_ray(idx, Ray::sout, occupied);
             } while(rooks &= rooks-1);
         }
         mvs &= ~any_friendly;
@@ -268,11 +411,11 @@ namespace rus {
         board::Board mvs = board::empty;
         if(bishops) {
             do {
-                int idx = bit_scan::scan_fwd(bishops);
-                mvs |= calc_pos_ray(idx, nort_east, occupied);
-                mvs |= calc_pos_ray(idx, nort_west, occupied);
-                mvs |= calc_neg_ray(idx, sout_east, occupied);
-                mvs |= calc_neg_ray(idx, sout_west, occupied);
+                auto idx = static_cast<Position>(bit_scan::scan_fwd(bishops));
+                mvs |= calc_pos_ray(idx, Ray::nort_east, occupied);
+                mvs |= calc_pos_ray(idx, Ray::nort_west, occupied);
+                mvs |= calc_neg_ray(idx, Ray::sout_east, occupied);
+                mvs |= calc_neg_ray(idx, Ray::sout_west, occupied);
             } while(bishops &= bishops-1);
         }
         mvs &= ~any_friendly;
@@ -284,15 +427,15 @@ namespace rus {
         board::Board mvs = board::empty;
         if(queens) {
             do {
-                int idx = bit_scan::scan_fwd(queens);
-                mvs |= calc_pos_ray(idx, nort, occupied);
-                mvs |= calc_pos_ray(idx, east, occupied);
-                mvs |= calc_neg_ray(idx, west, occupied);
-                mvs |= calc_neg_ray(idx, sout, occupied);
-                mvs |= calc_pos_ray(idx, nort_east, occupied);
-                mvs |= calc_pos_ray(idx, nort_west, occupied);
-                mvs |= calc_neg_ray(idx, sout_east, occupied);
-                mvs |= calc_neg_ray(idx, sout_west, occupied);
+                auto idx = static_cast<Position>(bit_scan::scan_fwd(queens));
+                mvs |= calc_pos_ray(idx, Ray::nort, occupied);
+                mvs |= calc_pos_ray(idx, Ray::east, occupied);
+                mvs |= calc_neg_ray(idx, Ray::west, occupied);
+                mvs |= calc_neg_ray(idx, Ray::sout, occupied);
+                mvs |= calc_pos_ray(idx, Ray::nort_east, occupied);
+                mvs |= calc_pos_ray(idx, Ray::nort_west, occupied);
+                mvs |= calc_neg_ray(idx, Ray::sout_east, occupied);
+                mvs |= calc_neg_ray(idx, Ray::sout_west, occupied);
             } while(queens &= queens-1);
         }
         mvs &= ~any_friendly;
@@ -340,24 +483,27 @@ namespace rus {
                     continue;
                 }
 
-                auto bb = board::position(current_rank * 8 + current_file);
+                auto bb = board::position(static_cast<Position>(current_rank * 8 + current_file));
+
+                const auto white = to_i(Player::white);
+                const auto black = to_i(Player::black);
 
                 switch(p) {
                     // black
-                    case 'p': state.boards[Player::black][Piece::pawn]     |= bb; break;
-                    case 'n': state.boards[Player::black][Piece::knight]   |= bb; break;
-                    case 'b': state.boards[Player::black][Piece::bishop]   |= bb; break;
-                    case 'r': state.boards[Player::black][Piece::rook]     |= bb; break;
-                    case 'q': state.boards[Player::black][Piece::queen]    |= bb; break;
-                    case 'k': state.boards[Player::black][Piece::king]     |= bb; break;
+                    case 'p': state.boards[black][to_i(Piece::pawn)]     |= bb; break;
+                    case 'n': state.boards[black][to_i(Piece::knight)]   |= bb; break;
+                    case 'b': state.boards[black][to_i(Piece::bishop)]   |= bb; break;
+                    case 'r': state.boards[black][to_i(Piece::rook)]     |= bb; break;
+                    case 'q': state.boards[black][to_i(Piece::queen)]    |= bb; break;
+                    case 'k': state.boards[black][to_i(Piece::king)]     |= bb; break;
 
                     // white
-                    case 'P': state.boards[Player::white][Piece::pawn]     |= bb; break;
-                    case 'N': state.boards[Player::white][Piece::knight]   |= bb; break;
-                    case 'B': state.boards[Player::white][Piece::bishop]   |= bb; break;
-                    case 'R': state.boards[Player::white][Piece::rook]     |= bb; break;
-                    case 'Q': state.boards[Player::white][Piece::queen]    |= bb; break;
-                    case 'K': state.boards[Player::white][Piece::king]     |= bb; break;
+                    case 'P': state.boards[white][to_i(Piece::pawn)]     |= bb; break;
+                    case 'N': state.boards[white][to_i(Piece::knight)]   |= bb; break;
+                    case 'B': state.boards[white][to_i(Piece::bishop)]   |= bb; break;
+                    case 'R': state.boards[white][to_i(Piece::rook)]     |= bb; break;
+                    case 'Q': state.boards[white][to_i(Piece::queen)]    |= bb; break;
+                    case 'K': state.boards[white][to_i(Piece::king)]     |= bb; break;
                     default:
                         assert(false); // Invalid syntax
                 }
@@ -378,10 +524,10 @@ namespace rus {
     }
 
     void Engine::initialize_fen_castling_ability(const std::string &str) {
-        state.castling_ability[Player::white][king_side]  = (str.find("K") != std::string::npos);
-        state.castling_ability[Player::white][queen_side] = (str.find("Q") != std::string::npos);
-        state.castling_ability[Player::black][king_side]  = (str.find("k") != std::string::npos);
-        state.castling_ability[Player::black][queen_side] = (str.find("q") != std::string::npos);
+        state.castling_ability[to_i(Player::white)][to_i(Castle::king)]  = (str.find("K") != std::string::npos);
+        state.castling_ability[to_i(Player::white)][to_i(Castle::queen)] = (str.find("Q") != std::string::npos);
+        state.castling_ability[to_i(Player::black)][to_i(Castle::king)]  = (str.find("k") != std::string::npos);
+        state.castling_ability[to_i(Player::black)][to_i(Castle::queen)] = (str.find("q") != std::string::npos);
     }
 
     void Engine::initialize_fen_ep_target(const std::string &str) {
@@ -391,7 +537,7 @@ namespace rus {
             return;
         }
 
-        state.ep_pos = Position::from_rf(str[1] - '0', str[0]);
+        state.ep_pos = pos_from_rf(str[1] - '0', str[0]);
     }
 
     board::Board Engine::calc_knight_moves(const board::Board knights) {
@@ -404,48 +550,48 @@ namespace rus {
         return (h1 << 16) | (h1 >> 16) | (h2 << 8) | (h2 >> 8);
     }
 
-    board::Board Engine::calc_ray(const int sq, const int dir) {
-        board::Board me = board::Board(0x1) << sq;
+    board::Board Engine::calc_ray(const Position sq, const Ray dir) {
+        board::Board me = board::position(sq);
         switch(dir) {
-            case nort: return fill::nortFill(me) & ~me;
-            case east: return fill::eastFill(me) & ~me;
-            case sout: return fill::soutFill(me) & ~me;
-            case west: return fill::westFill(me) & ~me;
-            case nort_east: return fill::noEaFill(me) & ~me;
-            case sout_east: return fill::soEaFill(me) & ~me;
-            case nort_west: return fill::noWeFill(me) & ~me;
-            case sout_west: return fill::soWeFill(me) & ~me;
+            case Ray::nort: return fill::nortFill(me) & ~me;
+            case Ray::east: return fill::eastFill(me) & ~me;
+            case Ray::sout: return fill::soutFill(me) & ~me;
+            case Ray::west: return fill::westFill(me) & ~me;
+            case Ray::nort_east: return fill::noEaFill(me) & ~me;
+            case Ray::sout_east: return fill::soEaFill(me) & ~me;
+            case Ray::nort_west: return fill::noWeFill(me) & ~me;
+            case Ray::sout_west: return fill::soWeFill(me) & ~me;
             default: assert(false);
         }
         return 0x0;
     }
 
-    board::Board Engine::calc_pos_ray(int sq, const int dir, board::Board occupied) const {
-        assert(dir != sout);
-        assert(dir != west);
-        assert(dir != sout_east);
-        assert(dir != sout_west);
+    board::Board Engine::calc_pos_ray(const Position sq, const Ray dir, board::Board occupied) const {
+        assert(dir != Ray::sout);
+        assert(dir != Ray::west);
+        assert(dir != Ray::sout_east);
+        assert(dir != Ray::sout_west);
 
-        board::Board attacks = rays_tbl[dir][sq];
+        board::Board attacks = rays_tbl[static_cast<Ray_type>(dir)][static_cast<Position_type>(sq)];
         board::Board blocker = attacks & occupied;
         if ( blocker ) {
-            sq = bit_scan::scan_fwd(blocker);
-            attacks ^= rays_tbl[dir][sq];
+            auto s = bit_scan::scan_fwd(blocker);
+            attacks ^= rays_tbl[static_cast<Ray_type>(dir)][static_cast<Position_type>(s)];
         }
         return attacks;
     }
 
-    board::Board Engine::calc_neg_ray(int sq, const int dir, board::Board occupied) const {
-        assert(dir != nort);
-        assert(dir != east);
-        assert(dir != nort_east);
-        assert(dir != nort_west);
+    board::Board Engine::calc_neg_ray(const Position sq, const Ray dir, board::Board occupied) const {
+        assert(dir != Ray::nort);
+        assert(dir != Ray::east);
+        assert(dir != Ray::nort_east);
+        assert(dir != Ray::nort_west);
 
-        board::Board attacks = rays_tbl[dir][sq];
+        board::Board attacks = rays_tbl[(Ray_type)dir][(Position_type)sq];
         board::Board blocker = attacks & occupied;
         if ( blocker ) {
-            sq = bit_scan::scan_rev(blocker);
-            attacks ^= rays_tbl[dir][sq];
+            auto s = bit_scan::scan_rev(blocker);
+            attacks ^= rays_tbl[(Ray_type)dir][(Position_type)s];
         }
         return attacks;
     }
@@ -466,9 +612,9 @@ namespace rus {
     }
 
     void Engine::ray_pre_process() {
-        for (int i = 0; i < Position::size; i++) {
-            for (int dir = 0; dir < ray_direction_size; dir++) {
-                rays_tbl[dir][i] = calc_ray(i, dir);
+        for(auto i = Position::start; i != Position::end; ++i) {
+            for(auto dir = Ray::start; dir != Ray::end; ++dir) {
+                rays_tbl[(Ray_type)dir][(Position_type)i] = calc_ray(i, dir);
             }
         }
     }

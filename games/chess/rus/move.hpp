@@ -3,12 +3,14 @@
 
 #include <cstdint>
 
-#include "position.hpp"
+#include "enums.hpp"
 
 namespace rus {
 
     class Move {
     public:
+
+        //TODO: Add default constructor to take from, to, and flag
 
         enum class Flag: uint8_t {
             quiet,
@@ -23,8 +25,8 @@ namespace rus {
             queen_promo,
         };
 
-        Position::Type to;
-        Position::Type from;
+        Position to;
+        Position from;
         Flag flag;
 
 

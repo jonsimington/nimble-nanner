@@ -8,6 +8,5 @@ rus/bit_scan.cpp
 rus/fill.cpp
 rus/state.cpp
 rus/board.cpp
-rus/position.cpp
 rus/engine.cpp
-rus/player.cpp
+rus/enums.cpp

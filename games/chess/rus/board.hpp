@@ -6,7 +6,7 @@
 #include <functional>
 #include <cassert>
 
-#include "position.hpp"
+#include "enums.hpp"
 
 namespace rus {
     namespace board {
@@ -15,10 +15,8 @@ namespace rus {
         const Board empty = 0x00;
         const Board full = ~empty;
 
-        constexpr Board position(Position::Type pos) {
-            assert(pos >= 0);
-            assert(pos < Position::size);
-            return Board(0x1) << pos;
+        constexpr Board position(Position pos) {
+            return Board(0x1) << (Position_type)pos;
         }
 
         constexpr Board rank(uint8_t r) {
@@ -43,10 +41,6 @@ namespace rus {
         constexpr Board step_se(const Board bb) { return (bb >> 7) & ~file('a'); }
         constexpr Board step_nw(const Board bb) { return (bb << 7) & ~file('h'); }
         constexpr Board step_sw(const Board bb) { return (bb >> 9) & ~file('h'); }
-
-        void rankFileFromIdx(int idx, int & rank, std::string & file);
-
-        void for_each_bit(Board bb, std::function<void(Position::Type)> callback);
 
     }
 }

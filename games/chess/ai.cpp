@@ -2,10 +2,9 @@
 // This is where you build your AI
 
 #include "ai.hpp"
-#include "rus/rus.hpp"
 
 // You can add #includes here for your AI.
-//#include "rus/rus.hpp"
+#include "rus/rus.hpp"
 
 namespace cpp_client
 {
@@ -31,8 +30,6 @@ void AI::start()
 {
     srand(time(NULL));
 
-    engine = std::make_unique(rus::Engine());
-
     rus::Engine_options options;
     std::string str;
 
@@ -41,7 +38,7 @@ void AI::start()
         options.id_depth = rus::util::from_string<int>(str);
     }
 
-    engine->initialize(options);
+    engine.initialize(options);
 }
 
 /// <summary>
@@ -71,7 +68,7 @@ bool AI::run_turn()
 
     print_current_board();
     if(game->moves.size() > 0) {
-        engine->update(game->moves.back()->san);
+        engine.update(game->moves.back()->san);
     }
 
     return true; // to signify we are done with our turn.
@@ -144,21 +141,6 @@ void AI::print_current_board()
 }
 
 // You can add additional methods here for your AI to call
-Piece AI::getPieceByIdx(const int idx) {
-    int rank;
-    std::string file;
-
-    rus::board::rankFileFromIdx(idx, rank, file);
-
-    for(auto& p: this->game->pieces) {
-        if(p->rank == rank && p->file == file) {
-            return p;
-        }
-    }
-
-    std::cerr << "Error: Piece not found" << std::endl;
-    std::cerr << "File: " << rank << "\tRank: " << rank << std::endl;
-}
 
 } // chess
 

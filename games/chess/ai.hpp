@@ -37,7 +37,7 @@ public:
     Player player;
 
     // You can add additional class variables here.
-    std::unique_ptr<rus::Engine> engine;
+    rus::Engine engine;
 
     /// <summary>
     /// This returns your AI's name to the game server.
@@ -78,7 +78,6 @@ public:
     void print_current_board();
 
     // You can add additional methods here.
-    Piece getPieceByIdx(const int idx);
 
 
     // ####################
