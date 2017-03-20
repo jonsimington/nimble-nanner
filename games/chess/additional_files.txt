@@ -10,3 +10,4 @@ rus/state.cpp
 rus/board.cpp
 rus/position.cpp
 rus/engine.cpp
+rus/player.cpp

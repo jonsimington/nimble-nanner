@@ -39,26 +39,191 @@ namespace rus {
         std::cout << "Updating with san: " << san << "\n";
     }
 
-    board::Board Engine::pawn_moves1(const Player_enum player, const board::Board pawns, const board::Board empty) {
-        if(player == white_idx) {
+    State Engine::apply_move(const State &state, const Move move) const {
+        auto new_state = state;
+        auto player = state.player;
+        auto enemy = Player::opponent(state.player);
+        auto from_bb = board::position(move.from);
+        auto to_bb = board::position(move.from);
+        auto piece = state.find_piece_type(move.from);
+
+        assert(from_bb & state.any_piece[player] > 0); // piece is owned by player
+
+
+
+        switch(move.flag) {
+            case Move::Flag::quiet: {
+
+            } break;
+        }
+
+        new_state.pre_process();
+        return new_state;
+    }
+
+    std::vector<Move> Engine::piece_moves(const State state, const Position::Type sq) const {
+        std::vector<Move> moves;
+
+        auto curr = board::position(sq);
+
+        auto player = state.player;
+        auto enemy = Player::opponent(state.player);
+
+        assert(curr & state.any_piece[state.player] > 0); // assert square is valid and owned by current player
+
+        auto type = Piece::size;
+        for(int piece = 0; piece < Piece::size; piece++) {
+            if(state.boards[state.player][piece] & curr) {
+                type = piece;
+                break;
+            }
+        }
+        assert(type != Piece::size);
+
+        switch(type) {
+            case Piece::pawn: {
+                auto bb = pawn_moves1(player, curr, state.empty);
+                bit_scan::for_each_bit(bb, [this, &moves, &state](Position::Type to){
+                    Move m{.from=sq, .to=to, .flag=Move::Flag::quiet};
+                    moves.push_back(m);
+                });
+                bb = pawn_moves1(player, curr, state.empty);
+                bit_scan::for_each_bit(bb, [this, &moves, &state](Position::Type to){
+                    Move m{.from=sq, .to=to, .flag=Move::Flag::dbl_pawn};
+                    moves.push_back(m);
+                });
+                bb = pawn_captures(player, curr, state.any_piece[enemy]);
+                bit_scan::for_each_bit(bb, [this, &moves, &state](Position::Type to){
+                    Move m{.from=sq, .to=to, .flag=Move::Flag::capture};
+                    moves.push_back(m);
+                });
+            } break;
+
+            case Piece::knight: {
+                auto bb = knight_moves(curr, state.any_piece[player]);
+                auto quiet = bb & ~state.any_piece[enemy];
+                bit_scan::for_each_bit(quiet, [this, &moves, &state](Position::Type to){
+                    Move m{.from=sq, .to=to, .flag=Move::Flag::quiet};
+                    moves.push_back(m);
+                });
+
+                auto captures = bb & state.any_piece[enemy];
+                bit_scan::for_each_bit(captures, [this, &moves, &state](Position::Type to){
+                    Move m{.from=sq, .to=to, .flag=Move::Flag::capture};
+                    moves.push_back(m);
+                });
+            } break;
+
+            case Piece::bishop: {
+                auto bb = bishop_moves(curr, state.any_piece[player], state.any_piece[enemy]);
+                auto quiet = bb & ~state.any_piece[enemy];
+                bit_scan::for_each_bit(quiet, [this, &moves, &state](Position::Type to){
+                    Move m{.from=sq, .to=to, .flag=Move::Flag::quiet};
+                    moves.push_back(m);
+                });
+
+                auto captures = bb & state.any_piece[enemy];
+                bit_scan::for_each_bit(captures, [this, &moves, &state](Position::Type to){
+                    Move m{.from=sq, .to=to, .flag=Move::Flag::capture};
+                    moves.push_back(m);
+                });
+            } break;
+
+            case Piece::rook: {
+                auto bb = rook_moves(curr, state.any_piece[player], state.any_piece[enemy]);
+                auto quiet = bb & ~state.any_piece[enemy];
+                bit_scan::for_each_bit(quiet, [this, &moves, &state](Position::Type to){
+                    Move m{.from=sq, .to=to, .flag=Move::Flag::quiet};
+                    moves.push_back(m);
+                });
+
+                auto captures = bb & state.any_piece[enemy];
+                bit_scan::for_each_bit(captures, [this, &moves, &state](Position::Type to){
+                    Move m{.from=sq, .to=to, .flag=Move::Flag::capture};
+                    moves.push_back(m);
+                });
+            } break;
+
+            case Piece::queen: {
+                auto bb = queen_moves(curr, state.any_piece[player], state.any_piece[enemy]);
+                auto quiet = bb & ~state.any_piece[enemy];
+                bit_scan::for_each_bit(quiet, [this, &moves, &state](Position::Type to){
+                    Move m{.from=sq, .to=to, .flag=Move::Flag::quiet};
+                    moves.push_back(m);
+                });
+
+                auto captures = bb & state.any_piece[enemy];
+                bit_scan::for_each_bit(captures, [this, &moves, &state](Position::Type to){
+                    Move m{.from=sq, .to=to, .flag=Move::Flag::capture};
+                    moves.push_back(m);
+                });
+            } break;
+
+            case Piece::king: {
+                auto bb = king_moves(curr, state.any_piece[player]);
+                auto quiet = bb & ~state.any_piece[enemy];
+                bit_scan::for_each_bit(quiet, [this, &moves, &state](Position::Type to){
+                    Move m{.from=sq, .to=to, .flag=Move::Flag::quiet};
+                    moves.push_back(m);
+                });
+
+                auto captures = bb & state.any_piece[enemy];
+                bit_scan::for_each_bit(captures, [this, &moves, &state](Position::Type to){
+                    Move m{.from=sq, .to=to, .flag=Move::Flag::capture};
+                    moves.push_back(m);
+                });
+            } break;
+
+            default:
+                assert(false); // Unknown piece
+
+        }
+
+
+        return moves;
+    }
+
+    std::vector<Move> Engine::valid_piece_moves(const State state, const Position::Type sq) const {
+        auto moves = piece_moves(state, sq);
+        return filter_out_check(state, moves);
+    }
+
+    std::vector<Move> Engine::moves(const State state) const {
+        std::vector<Move> moves;
+
+        bit_scan::for_each_bit(state.any_piece[state.player], [this, &moves, &state](Position::Type sq){
+            auto ms = piece_moves(state, sq);
+            moves.insert(moves.begin(), ms.begin(), ms.end());
+        });
+
+        return moves;
+    }
+
+    std::vector<Move> Engine::valid_moves(const State state) const {
+        auto mvs = moves(state);
+        return filter_out_check(state, mvs);
+    }
+
+    board::Board Engine::pawn_moves1(const Player::Type player, const board::Board pawns, const board::Board empty) const {
+        if(player == Player::white) {
             return board::step_n(pawns) & empty;
         }
         else {
             return board::step_s(pawns) & empty;
         }
     }
-    board::Board Engine::pawn_moves2(const Player_enum player, const board::Board pawns, const board::Board empty) {
+    board::Board Engine::pawn_moves2(const Player::Type player, const board::Board pawns, const board::Board empty) const {
         board::Board m1 = pawn_moves1(player, pawns, empty);
 
-        if(player == white_idx) {
+        if(player == Player::white) {
             return board::step_n(m1) & empty & board::rank(4);
         }
         else {
             return board::step_s(m1) & empty & board::rank(5);
         }
     }
-    board::Board Engine::pawn_attacks(const Player_enum player, const board::Board pawns) {
-        if(player == white_idx) {
+    board::Board Engine::pawn_attacks(const Player::Type player, const board::Board pawns) const {
+        if(player == Player::white) {
             return board::step_ne(pawns) | board::step_nw(pawns);
         }
         else {
@@ -66,7 +231,11 @@ namespace rus {
         }
     }
 
-    board::Board Engine::knight_moves(board::Board knights, board::Board any_friendly) {
+    board::Board Engine::pawn_captures(const Player::Type player, const board::Board pawns, const board::Board any_enemy) const {
+        return pawn_attacks(player, pawns) & any_enemy;
+    }
+
+    board::Board Engine::knight_moves(board::Board knights, board::Board any_friendly) const {
         board::Board ms = board::empty;
         if(knights) {
             do {
@@ -78,7 +247,7 @@ namespace rus {
         return ms;
     }
 
-    board::Board Engine::rook_moves(board::Board rooks, const board::Board any_friendly, const board::Board any_enemy) {
+    board::Board Engine::rook_moves(board::Board rooks, const board::Board any_friendly, const board::Board any_enemy) const {
         board::Board occupied = any_friendly | any_enemy;
         board::Board mvs = board::empty;
         if(rooks) {
@@ -94,7 +263,7 @@ namespace rus {
         return mvs;
     }
 
-    board::Board Engine::bishop_moves(board::Board bishops, const board::Board any_friendly, const board::Board any_enemy) {
+    board::Board Engine::bishop_moves(board::Board bishops, const board::Board any_friendly, const board::Board any_enemy) const {
         board::Board occupied = any_friendly | any_enemy;
         board::Board mvs = board::empty;
         if(bishops) {
@@ -110,7 +279,7 @@ namespace rus {
         return mvs;
     }
 
-    board::Board Engine::queen_moves(board::Board queens, const board::Board any_friendly, const board::Board any_enemy) {
+    board::Board Engine::queen_moves(board::Board queens, const board::Board any_friendly, const board::Board any_enemy) const {
         board::Board occupied = any_friendly | any_enemy;
         board::Board mvs = board::empty;
         if(queens) {
@@ -130,7 +299,7 @@ namespace rus {
         return mvs;
     }
 
-    board::Board Engine::king_moves(board::Board kings, board::Board any_friendly) {
+    board::Board Engine::king_moves(board::Board kings, board::Board any_friendly) const {
         board::Board mvs = board::empty;
         if(kings) {
             do {
@@ -175,20 +344,20 @@ namespace rus {
 
                 switch(p) {
                     // black
-                    case 'p': state.boards[black_idx][pawn_idx]     |= bb; break;
-                    case 'n': state.boards[black_idx][knight_idx]   |= bb; break;
-                    case 'b': state.boards[black_idx][bishop_idx]   |= bb; break;
-                    case 'r': state.boards[black_idx][rook_idx]     |= bb; break;
-                    case 'q': state.boards[black_idx][queen_idx]    |= bb; break;
-                    case 'k': state.boards[black_idx][king_idx]     |= bb; break;
+                    case 'p': state.boards[Player::black][Piece::pawn]     |= bb; break;
+                    case 'n': state.boards[Player::black][Piece::knight]   |= bb; break;
+                    case 'b': state.boards[Player::black][Piece::bishop]   |= bb; break;
+                    case 'r': state.boards[Player::black][Piece::rook]     |= bb; break;
+                    case 'q': state.boards[Player::black][Piece::queen]    |= bb; break;
+                    case 'k': state.boards[Player::black][Piece::king]     |= bb; break;
 
                     // white
-                    case 'P': state.boards[white_idx][pawn_idx]     |= bb; break;
-                    case 'N': state.boards[white_idx][knight_idx]   |= bb; break;
-                    case 'B': state.boards[white_idx][bishop_idx]   |= bb; break;
-                    case 'R': state.boards[white_idx][rook_idx]     |= bb; break;
-                    case 'Q': state.boards[white_idx][queen_idx]    |= bb; break;
-                    case 'K': state.boards[white_idx][king_idx]     |= bb; break;
+                    case 'P': state.boards[Player::white][Piece::pawn]     |= bb; break;
+                    case 'N': state.boards[Player::white][Piece::knight]   |= bb; break;
+                    case 'B': state.boards[Player::white][Piece::bishop]   |= bb; break;
+                    case 'R': state.boards[Player::white][Piece::rook]     |= bb; break;
+                    case 'Q': state.boards[Player::white][Piece::queen]    |= bb; break;
+                    case 'K': state.boards[Player::white][Piece::king]     |= bb; break;
                     default:
                         assert(false); // Invalid syntax
                 }
@@ -201,28 +370,28 @@ namespace rus {
 
     void Engine::initialize_fen_side_to_move(const std::string &str) {
         switch(str[0]) {
-            case 'w': current = white_idx; break;
-            case 'b': current = black_idx; break;
+            case 'w': state.player = Player::white; break;
+            case 'b': state.player = Player::black; break;
             default:
                 assert(false); // Got invalid side to move
         }
     }
 
     void Engine::initialize_fen_castling_ability(const std::string &str) {
-        castling_ability[white_idx][king_side]  = (str.find("K") != std::string::npos);
-        castling_ability[white_idx][queen_side] = (str.find("Q") != std::string::npos);
-        castling_ability[black_idx][king_side]  = (str.find("k") != std::string::npos);
-        castling_ability[black_idx][queen_side] = (str.find("q") != std::string::npos);
+        state.castling_ability[Player::white][king_side]  = (str.find("K") != std::string::npos);
+        state.castling_ability[Player::white][queen_side] = (str.find("Q") != std::string::npos);
+        state.castling_ability[Player::black][king_side]  = (str.find("k") != std::string::npos);
+        state.castling_ability[Player::black][queen_side] = (str.find("q") != std::string::npos);
     }
 
     void Engine::initialize_fen_ep_target(const std::string &str) {
-        ep_able = true;
+        state.ep_able = true;
         if(str == "-") {
-            ep_able = false;
+            state.ep_able = false;
             return;
         }
 
-        ep_pos = Position::from_rf(str[1] - '0', str[0]);
+        state.ep_pos = Position::from_rf(str[1] - '0', str[0]);
     }
 
     board::Board Engine::calc_knight_moves(const board::Board knights) {
@@ -251,7 +420,7 @@ namespace rus {
         return 0x0;
     }
 
-    board::Board Engine::calc_pos_ray(int sq, const int dir, board::Board occupied) {
+    board::Board Engine::calc_pos_ray(int sq, const int dir, board::Board occupied) const {
         assert(dir != sout);
         assert(dir != west);
         assert(dir != sout_east);
@@ -266,7 +435,7 @@ namespace rus {
         return attacks;
     }
 
-    board::Board Engine::calc_neg_ray(int sq, const int dir, board::Board occupied) {
+    board::Board Engine::calc_neg_ray(int sq, const int dir, board::Board occupied) const {
         assert(dir != nort);
         assert(dir != east);
         assert(dir != nort_east);
