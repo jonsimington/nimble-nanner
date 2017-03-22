@@ -12,7 +12,8 @@
 #include "../../joueur/src/attr_wrapper.hpp"
 
 // You can add additional #includes here
-#include "rus/engine.hpp"
+#include "rus/rus.hpp"
+#include "rus/move.hpp"
 
 namespace cpp_client
 {
@@ -78,7 +79,7 @@ public:
     void print_current_board();
 
     // You can add additional methods here.
-
+    void make_move(const rus::Move & move);
 
     // ####################
     // Don't edit these!

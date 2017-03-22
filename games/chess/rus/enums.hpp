@@ -23,7 +23,8 @@ namespace rus {
     const std::size_t Position_size = static_cast<std::size_t>(Position::end);
     void operator++(Position & p);
     constexpr Position_type to_i(const Position p) { return (Position_type)p; }
-    Position pos_from_rf(const int rank, const char file);
+    Position pos_from_fr(const char file, const int rank);
+    void fr_from_pos(const Position p, char & file, int & rank);
 
     // Player
     using Player_type = uint8_t;
@@ -34,7 +35,7 @@ namespace rus {
         end,
         start = 0,
     };
-    const std::size_t Player_size = static_cast<std::size_t>(Position::end);
+    const std::size_t Player_size = static_cast<std::size_t>(Player::end);
     void operator++(Player & p);
     constexpr Player_type to_i(const Player p) { return (Player_type)p; }
     Player operator!(const Player p);

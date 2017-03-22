@@ -4,6 +4,7 @@
 #include "ai.hpp"
 
 // You can add #includes here for your AI.
+#include <string>
 #include "rus/rus.hpp"
 
 namespace cpp_client
@@ -65,11 +66,28 @@ void AI::ended(bool won, const std::string& reason)
 /// <returns>Represents if you want to end your turn. True means end your turn, False means to keep your turn going and re-call this function.</returns>
 bool AI::run_turn()
 {
-
     print_current_board();
+
+    // Update from opponent's move
     if(game->moves.size() > 0) {
-        engine.update(game->moves.back()->san);
+        auto ai_move = game->moves.back();
+        auto move = engine.move_from_framework(
+                engine.current_state,
+                ai_move->from_file, ai_move->from_rank,
+                ai_move->to_file, ai_move->to_rank,
+                ai_move->promotion
+        );
+        engine.update(move);
     }
+
+    //auto all_moves = engine.valid_moves(engine.current_state);
+    //std::cout << "All moves: " << all_moves.size() << std::endl;
+
+    // Make random move
+    // make_move(all_moves[rand() % all_moves.size()]);
+
+    auto good_state = engine.id_minimax(engine.current_state, engine.current_state.player == rus::Player::white);
+    make_move(good_state.move);
 
     return true; // to signify we are done with our turn.
 }
@@ -141,6 +159,27 @@ void AI::print_current_board()
 }
 
 // You can add additional methods here for your AI to call
+void AI::make_move(const rus::Move & move) {
+    std::cout << move << std::endl;
+
+    char from_file, to_file;
+    int from_rank, to_rank;
+
+    rus::fr_from_pos(move.from, from_file, from_rank);
+    rus::fr_from_pos(move.to, to_file, to_rank);
+
+    std::cout <<  "From " << from_file << from_rank << std::endl;
+    std::cout <<  "To   " << to_file << to_rank << std::endl;
+    for(auto& piece: game->pieces) {
+        if(piece->file[0] == from_file && piece->rank == from_rank) {
+            piece->move(std::string(1, to_file), to_rank);
+            engine.update(move);
+            return;
+        }
+    }
+    std::cerr << "UNABLE TO MAKE MOVE" << std::endl;
+}
+
 
 } // chess
 

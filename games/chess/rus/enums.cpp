@@ -1,4 +1,5 @@
 #include <cassert>
+#include <type_traits>
 
 #include "enums.hpp"
 
@@ -11,7 +12,7 @@ namespace rus {
         );
     }
 
-    Position pos_from_rf(const int rank, const char file) {
+    Position pos_from_fr(const char file, const int rank) {
         assert(rank >= 1);
         assert(rank <= 8);
         assert(file >= 'a');
@@ -20,6 +21,13 @@ namespace rus {
         return static_cast<Position>(
                 (file-'a') + (8*(rank-1))
         );
+    }
+
+    void fr_from_pos(const Position p, char & file, int & rank) {
+        const char files[] = "abcdefgh";
+        auto idx = static_cast<std::underlying_type_t<Position>>(p);
+        file = files[idx % 8];
+        rank = (idx / 8) + 1;
     }
 
     // Player

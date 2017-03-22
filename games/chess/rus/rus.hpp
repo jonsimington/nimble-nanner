@@ -7,5 +7,6 @@
 #include "board.hpp"
 #include "move.hpp"
 #include "util.hpp"
+#include "engine.hpp"
 
 #endif

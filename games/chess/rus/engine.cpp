@@ -16,12 +16,12 @@ namespace rus {
     }
 
     void Engine::initialize(const Engine_options & options) {
+        std::string fen;
 
-        id_depth = options.id_depth.value_or(3);
-
-        std::string fen = options.fen.value_or("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-
+        fen = options.fen.value_or("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
         std::cout << "Initializing with fen: " << fen << "\n";
+        id_depth = options.id_depth.value_or(3);
+        std::cout << "Initializing with id_depth: " << id_depth << "\n";
 
         std::regex re("(.*) (.*) (.*) (.*) (.*) (.*)");
         std::smatch m;
@@ -37,10 +37,15 @@ namespace rus {
         this->knight_pre_process();
         this->ray_pre_process();
         this->king_pre_process();
+
+        current_state.turns_since_stuff = 0;
+        current_state.pre_process();
     }
 
-    void Engine::update(const std::string &san) {
-        std::cout << "Updating with san: " << san << "\n";
+    void Engine::update(const Move move) {
+        std::cout << "Applying move: " << move << std::endl;
+
+        current_state = apply_move(current_state, move);
     }
 
     State Engine::apply_move(const State &state, const Move move) const {
@@ -49,8 +54,8 @@ namespace rus {
         auto player = to_i(state.player);
         auto enemy = to_i(!state.player);
         auto from_bb = board::position(move.from);
-        auto to_bb = board::position(move.from);
-        assert(from_bb & state.any_piece[player] > 0); // piece is owned by player
+        auto to_bb = board::position(move.to);
+        assert(from_bb & state.get_any(state.player)); // piece is owned by player
 
         const auto pawn_i = to_i(Piece::pawn);
         const auto rook_i = to_i(Piece::rook);
@@ -60,6 +65,12 @@ namespace rus {
         auto piece = to_i(piece_e);
 
         bool clear_ep = true;
+
+        new_state.turns_since_stuff++;
+
+        if(piece_e == Piece::pawn) {
+            new_state.turns_since_stuff = 0;
+        }
 
         switch(move.flag) {
             case Move::Flag::quiet: {
@@ -91,6 +102,8 @@ namespace rus {
                 new_state.boards[player][rook_i] |= rook_to_bb;
 
                 new_state.castling_ability[player][to_i(Castle::king)] = false;
+
+                new_state.turns_since_stuff = 0;
             } break;
 
             case Move::Flag::queen_castle: {
@@ -107,6 +120,8 @@ namespace rus {
                 new_state.boards[player][rook_i] |= rook_to_bb;
 
                 new_state.castling_ability[player][to_i(Castle::queen)] = false;
+
+                new_state.turns_since_stuff = 0;
             } break;
 
             case Move::Flag::capture: {
@@ -114,6 +129,8 @@ namespace rus {
                 new_state.boards[player][piece] &= ~from_bb;
                 new_state.boards[player][piece] |= to_bb;
                 new_state.boards[enemy][captured_type] &= ~to_bb;
+
+                new_state.turns_since_stuff = 0;
             } break;
 
             case Move::Flag::ep_capture: {
@@ -125,30 +142,36 @@ namespace rus {
                 new_state.boards[player][pawn_i] &= ~from_bb;
                 new_state.boards[player][pawn_i] |= to_bb;
                 new_state.boards[enemy][pawn_i] &= ~captured_bb;
+
+                new_state.turns_since_stuff = 0;
             } break;
 
             case Move::Flag::knight_promo: {
                 assert(piece_e == Piece::pawn);
                 new_state.boards[player][piece] &= ~from_bb;
                 new_state.boards[player][to_i(Piece::knight)] |= to_bb;
+                new_state.turns_since_stuff = 0;
             } break;
 
             case Move::Flag::bishop_promo: {
                 assert(piece_e == Piece::pawn);
                 new_state.boards[player][piece] &= ~from_bb;
                 new_state.boards[player][to_i(Piece::bishop)] |= to_bb;
+                new_state.turns_since_stuff = 0;
             } break;
 
             case Move::Flag::rook_promo: {
                 assert(piece_e == Piece::pawn);
                 new_state.boards[player][piece] &= ~from_bb;
                 new_state.boards[player][to_i(Piece::rook)] |= to_bb;
+                new_state.turns_since_stuff = 0;
             } break;
 
             case Move::Flag::queen_promo: {
                 assert(piece_e == Piece::pawn);
                 new_state.boards[player][piece] &= ~from_bb;
                 new_state.boards[player][to_i(Piece::queen)] |= to_bb;
+                new_state.turns_since_stuff = 0;
             } break;
 
             default:
@@ -160,8 +183,99 @@ namespace rus {
             new_state.ep_pos = Position::a1;
         }
 
+        // update player
+        new_state.player = !new_state.player;
+
+        if(new_state.last_moves.size() >= 8) {
+            new_state.last_moves.pop_back();
+        }
+        new_state.last_moves.insert(new_state.last_moves.begin(), move);
+
         new_state.pre_process();
         return new_state;
+    }
+
+    std::vector<Move> Engine::filter_out_check(const State state, const std::vector<Move> & moves) const {
+        std::vector<Move> valid_moves;
+
+        for(auto& m: moves) {
+            auto new_state = apply_move(state, m);
+            if(!is_in_check(new_state)) {
+                valid_moves.push_back(m);
+            }
+        }
+
+        return valid_moves;
+    }
+
+    Move Engine::move_from_framework(const State state,
+                             const std::string& from_file, const int& from_rank,
+                             const std::string& to_file, const int& to_rank,
+                             const std::string& promotion) const {
+        Move m;
+        m.from = pos_from_fr(from_file[0], from_rank);
+        m.to = pos_from_fr(to_file[0], to_rank);
+        m.flag = Move::Flag::quiet;
+
+        auto from_bb = board::position(m.from);
+        auto to_bb = board::position(m.to);
+
+        auto piece = state.find_piece_type(m.from);
+
+        // captured enemy
+        if(to_bb & state.get_any(!state.player)) {
+            m.flag = Move::Flag::capture;
+        }
+
+        switch(piece) {
+            case Piece::pawn: {
+                const auto dbl_start = (state.player == Player::white ? board::rank(2) : board::rank(7));
+                const auto dbl_end = (state.player == Player::white ? board::rank(4) : board::rank(5));
+
+                const auto promo_start = (state.player == Player::white ? board::rank(7) : board::rank(2));
+                const auto promo_end = (state.player == Player::white ? board::rank(8) : board::rank(1));
+
+                if( from_bb & dbl_start && to_bb & dbl_end ) {
+                    m.flag = Move::Flag::dbl_pawn;
+                }
+                else if(from_bb & promo_start && to_bb & promo_end) {
+                    if(promotion == "Queen")    m.flag = Move::Flag::queen_promo;
+                    else if(promotion == "Bishop")   m.flag = Move::Flag::bishop_promo;
+                    else if(promotion == "Rook")     m.flag = Move::Flag::rook_promo;
+                    else if(promotion == "Knight")   m.flag = Move::Flag::knight_promo;
+                    else assert(false); //Got bad promotion
+                }
+
+            } break;
+
+            case Piece::king: {
+                // queen side castling
+                const auto start = (state.player == Player::white ? Position::e1 : Position::e8);
+                const auto qs_end = (state.player == Player::white ? Position::c1 : Position::c8);
+                const auto ks_end = (state.player == Player::white ? Position::g1 : Position::g8);
+
+                if( start == m.from ) {
+                    if( qs_end == m.to ) m.flag = Move::Flag::queen_castle;
+                    else if( ks_end == m.to ) m.flag == Move::Flag::king_castle;
+                }
+            } break;
+        }
+
+        return m;
+    }
+
+    bool Engine::is_in_check(const State state) const {
+        auto player = to_i(state.player);
+        auto enemy = to_i(!state.player);
+        board::Board enemyMoves = board::empty;
+
+        enemyMoves |= pawn_captures(!state.player, state.boards[enemy][to_i(Piece::pawn)], state.any_piece[player]);
+        enemyMoves |= knight_moves(state.boards[enemy][to_i(Piece::knight)], state.any_piece[enemy]);
+        enemyMoves |= bishop_moves(state.boards[enemy][to_i(Piece::bishop)], state.any_piece[enemy], state.any_piece[player]);
+        enemyMoves |= rook_moves(state.boards[enemy][to_i(Piece::rook)], state.any_piece[enemy], state.any_piece[player]);
+        enemyMoves |= queen_moves(state.boards[enemy][to_i(Piece::queen)], state.any_piece[enemy], state.any_piece[player]);
+        enemyMoves |= king_moves(state.boards[enemy][to_i(Piece::king)], state.any_piece[enemy]);
+        return (enemyMoves & state.boards[player][to_i(Piece::king)]) > 0;
     }
 
     std::vector<Move> Engine::piece_moves(const State state, const Position sq) const {
@@ -173,7 +287,7 @@ namespace rus {
         auto player_e = state.player;
         auto enemy = to_i(!state.player);
 
-        assert(curr & state.any_piece[player] > 0); // assert square is valid and owned by current player
+        assert(curr & state.any_piece[player]); // assert square is valid and owned by current player
 
         auto type = Piece::end;
         for(auto piece = Piece::start; piece != Piece::end; ++piece) {
@@ -186,24 +300,24 @@ namespace rus {
 
         switch(type) {
             case Piece::pawn: {
-                auto bb = pawn_moves1(player_e, curr, state.empty);
-                bit_scan::for_each_bit(bb, [sq, this, &moves, &state](Position to){
+                auto bb1 = pawn_moves1(player_e, curr, state.empty);
+                bit_scan::for_each_bit(bb1, [sq, this, &moves, &state](Position to){
                     Move m;
                     m.from = sq;
                     m.to = to;
                     m.flag = Move::Flag::quiet;
                     moves.push_back(m);
                 });
-                bb = pawn_moves1(player_e, curr, state.empty);
-                bit_scan::for_each_bit(bb, [sq, this, &moves, &state](Position to){
+                auto bb2 = pawn_moves2(player_e, curr, state.empty);
+                bit_scan::for_each_bit(bb2, [sq, this, &moves, &state](Position to){
                     Move m;
                     m.from=sq;
                     m.to=to;
                     m.flag=Move::Flag::dbl_pawn;
                     moves.push_back(m);
                 });
-                bb = pawn_captures(player_e, curr, state.any_piece[enemy]);
-                bit_scan::for_each_bit(bb, [sq, this, &moves, &state](Position to){
+                auto bbc = pawn_captures(player_e, curr, state.any_piece[enemy]);
+                bit_scan::for_each_bit(bbc, [sq, this, &moves, &state](Position to){
                     Move m;
                     m.from = sq;
                     m.to = to;
@@ -213,8 +327,8 @@ namespace rus {
             } break;
 
             case Piece::knight: {
-                auto bb = knight_moves(curr, state.any_piece[player]);
-                auto quiet = bb & ~state.any_piece[enemy];
+                auto bb = knight_moves(curr, state.get_any(state.player));
+                auto quiet = bb & ~state.get_any(!state.player);
                 bit_scan::for_each_bit(quiet, [sq, this, &moves, &state](Position to){
                     Move m;
                     m.from = sq;
@@ -356,8 +470,7 @@ namespace rus {
         }
     }
     board::Board Engine::pawn_moves2(const Player player, const board::Board pawns, const board::Board empty) const {
-        board::Board m1 = pawn_moves1(player, pawns, empty);
-
+        auto m1 = pawn_moves1(player, pawns, empty);
         if(player == Player::white) {
             return board::step_n(m1) & empty & board::rank(4);
         }
@@ -469,7 +582,7 @@ namespace rus {
 
         int current_rank = 7;
         while(current_rank >= 0) {
-            std::string rank_str = m[7-current_rank];
+            std::string rank_str = m[7-current_rank+1];
 
             int current_idx = 0;
             int current_file = 0;
@@ -507,37 +620,40 @@ namespace rus {
                     default:
                         assert(false); // Invalid syntax
                 }
-
+                current_file++;
                 current_idx++;
             }
             current_rank --;
         }
+
+        current_state = state;
     }
 
     void Engine::initialize_fen_side_to_move(const std::string &str) {
         switch(str[0]) {
-            case 'w': state.player = Player::white; break;
-            case 'b': state.player = Player::black; break;
+            case 'w': me = Player::white; break;
+            case 'b': me = Player::black; break;
             default:
                 assert(false); // Got invalid side to move
         }
+        current_state.player = me;
     }
 
     void Engine::initialize_fen_castling_ability(const std::string &str) {
-        state.castling_ability[to_i(Player::white)][to_i(Castle::king)]  = (str.find("K") != std::string::npos);
-        state.castling_ability[to_i(Player::white)][to_i(Castle::queen)] = (str.find("Q") != std::string::npos);
-        state.castling_ability[to_i(Player::black)][to_i(Castle::king)]  = (str.find("k") != std::string::npos);
-        state.castling_ability[to_i(Player::black)][to_i(Castle::queen)] = (str.find("q") != std::string::npos);
+        current_state.castling_ability[to_i(Player::white)][to_i(Castle::king)]  = (str.find("K") != std::string::npos);
+        current_state.castling_ability[to_i(Player::white)][to_i(Castle::queen)] = (str.find("Q") != std::string::npos);
+        current_state.castling_ability[to_i(Player::black)][to_i(Castle::king)]  = (str.find("k") != std::string::npos);
+        current_state.castling_ability[to_i(Player::black)][to_i(Castle::queen)] = (str.find("q") != std::string::npos);
     }
 
     void Engine::initialize_fen_ep_target(const std::string &str) {
-        state.ep_able = true;
+        current_state.ep_able = true;
         if(str == "-") {
-            state.ep_able = false;
+            current_state.ep_able = false;
             return;
         }
 
-        state.ep_pos = pos_from_rf(str[1] - '0', str[0]);
+        current_state.ep_pos = pos_from_fr(str[0], str[1] - '0');
     }
 
     board::Board Engine::calc_knight_moves(const board::Board knights) {
