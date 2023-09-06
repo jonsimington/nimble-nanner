@@ -21,7 +21,7 @@ namespace chess
 std::string AI::get_name() const
 {
     // REPLACE WITH YOUR TEAM NAME!
-    return "Russley Shaw";
+    return "Nimble Nanner";
 }
 
 /// <summary>
